@@ -5,3 +5,28 @@ body {
     padding: 0 1rem;
     color: #222;
 }
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+form label {
+    font-weight: 600;
+    margin-top: 0.75rem;
+}
+
+form input,
+form select,
+form textarea {
+    font: inherit;
+    padding: 0.4rem;
+}
+
+form button {
+    margin-top: 1.5rem;
+    padding: 0.6rem;
+    font: inherit;
+    cursor: pointer;
+}
