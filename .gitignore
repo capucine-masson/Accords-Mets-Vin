@@ -1,0 +1,5 @@
+Consigne.md
+.env
+__pycache__/
+*.pyc
+cave.db
