@@ -66,6 +66,68 @@ body {
     opacity: 0.9;
 }
 
+.filters {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    max-width: none;
+}
+
+.filters > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex: 1 1 10rem;
+    min-width: 8rem;
+}
+
+.filters-actions {
+    flex: 0 0 auto;
+}
+
+.filters label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.filters select,
+.filters input {
+    font: inherit;
+    padding: 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    width: 100%;
+}
+
+.filters-actions {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.filters-actions button {
+    padding: 0.5rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.filters-actions button:hover {
+    opacity: 0.9;
+}
+
 .bottle-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));

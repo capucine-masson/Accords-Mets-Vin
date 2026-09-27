@@ -42,13 +42,59 @@ def init_db() -> None:
         conn.close()
 
 
-def list_bottles(statut: str = StatutBouteille.EN_CAVE.value) -> list[sqlite3.Row]:
+def list_bottles(
+    statut: str = StatutBouteille.EN_CAVE.value,
+    couleur: str | None = None,
+    millesime: int | None = None,
+    region: str | None = None,
+    cepage: str | None = None,
+) -> list[sqlite3.Row]:
+    conditions = ["statut = ?"]
+    params: list = [statut]
+
+    if couleur:
+        conditions.append("couleur = ?")
+        params.append(couleur)
+    if millesime:
+        conditions.append("millesime = ?")
+        params.append(millesime)
+    if region:
+        conditions.append("region = ?")
+        params.append(region)
+    if cepage:
+        conditions.append("cepages LIKE ?")
+        params.append(f"%{cepage}%")
+
+    query = f"SELECT * FROM bottles WHERE {' AND '.join(conditions)} ORDER BY nom COLLATE NOCASE"
     conn = get_connection()
     try:
-        return conn.execute(
-            "SELECT * FROM bottles WHERE statut = ? ORDER BY nom COLLATE NOCASE",
-            (statut,),
+        return conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
+
+
+def list_regions() -> list[str]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT region FROM bottles"
+            " WHERE region IS NOT NULL AND region != ''"
+            " ORDER BY region COLLATE NOCASE"
         ).fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+def list_millesimes() -> list[int]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT millesime FROM bottles"
+            " WHERE millesime IS NOT NULL"
+            " ORDER BY millesime DESC"
+        ).fetchall()
+        return [r[0] for r in rows]
     finally:
         conn.close()
 
