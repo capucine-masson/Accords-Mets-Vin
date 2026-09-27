@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from database import get_connection, init_db, insert_bottle
+from database import init_db, insert_bottle, list_bottles
 from enums import Couleur
 
 load_dotenv()
@@ -18,13 +18,9 @@ init_db()
 
 @app.get("/")
 def index(request: Request):
-    conn = get_connection()
-    try:
-        bottle_count = conn.execute("SELECT COUNT(*) FROM bottles").fetchone()[0]
-    finally:
-        conn.close()
+    bottles = list_bottles()
     return templates.TemplateResponse(
-        request, "index.html", {"bottle_count": bottle_count}
+        request, "index.html", {"bottles": bottles}
     )
 
 

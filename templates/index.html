@@ -7,10 +7,42 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <main>
-        <h1>Apogée Wine</h1>
-        <p>{{ bottle_count }} bouteille(s) en cave.</p>
-        <p><a href="/bouteilles/nouvelle">+ Ajouter une bouteille</a></p>
-    </main>
+    <div class="page">
+        <header class="page-header">
+            <div>
+                <h1>Ma cave</h1>
+                <p class="muted">{{ bottles|length }} bouteille(s) en cave.</p>
+            </div>
+            <a class="button" href="/bouteilles/nouvelle">+ Ajouter une bouteille</a>
+        </header>
+
+        {% if bottles %}
+        <div class="bottle-grid">
+            {% for b in bottles %}
+            <article class="bottle-card" data-couleur="{{ b.couleur }}">
+                <div class="bottle-card-header">
+                    <span class="couleur-dot" data-couleur="{{ b.couleur }}"></span>
+                    <h2>{{ b.nom }}</h2>
+                </div>
+                {% if b.domaine %}<p class="domaine">{{ b.domaine }}</p>{% endif %}
+                <p class="meta">
+                    {% if b.millesime %}{{ b.millesime }} &middot; {% endif %}
+                    {{ b.couleur }}
+                    {% if b.region or b.pays %} &middot; {{ [b.region, b.pays] | select | join(", ") }}{% endif %}
+                </p>
+                {% if b.cepages %}<p class="cepages">{{ b.cepages }}</p>{% endif %}
+                <p class="meta">
+                    Quantité : {{ b.quantite }}
+                    {% if b.prix_achat %} &middot; {{ "%.2f"|format(b.prix_achat) }} €{% endif %}
+                </p>
+                {% if b.note %}<p class="note">{{ b.note }}</p>{% endif %}
+                {% if b.date_achat %}<p class="muted small">Acheté le {{ b.date_achat }}</p>{% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">Ta cave est vide pour l'instant. <a href="/bouteilles/nouvelle">Ajoute ta première bouteille</a>.</p>
+        {% endif %}
+    </div>
 </body>
 </html>

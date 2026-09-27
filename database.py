@@ -42,6 +42,17 @@ def init_db() -> None:
         conn.close()
 
 
+def list_bottles(statut: str = StatutBouteille.EN_CAVE.value) -> list[sqlite3.Row]:
+    conn = get_connection()
+    try:
+        return conn.execute(
+            "SELECT * FROM bottles WHERE statut = ? ORDER BY nom COLLATE NOCASE",
+            (statut,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
 def insert_bottle(bottle: dict) -> int:
     conn = get_connection()
     try:
