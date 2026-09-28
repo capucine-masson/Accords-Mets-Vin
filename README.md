@@ -58,3 +58,14 @@ cave.db          base SQLite (générée au démarrage, non versionnée)
 ```
 
 Chaque bouteille appartient à un `proprietaire` (l'identifiant saisi à la connexion, normalisé). Toutes les requêtes de lecture/écriture sont filtrées par ce propriétaire, y compris l'accès direct à une bouteille par son URL.
+
+## Aperçu
+
+**Ma cave**
+![Vue de la cave](cave.png)
+
+**Fiche bouteille**
+![Fiche d'une bouteille](bouteille.png)
+
+**Calendrier d'apogée**
+![Calendrier d'apogée](calendrier.png)

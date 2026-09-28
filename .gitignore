@@ -5,3 +5,6 @@ __pycache__/
 cave.db
 static/uploads/*
 !static/uploads/.gitkeep
+bouteille.png
+cave.png
+calendrier.png

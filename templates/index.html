@@ -7,6 +7,30 @@
         <p class="soft">{{ bottles|length }} bouteille(s) en cave.</p>
     </div>
     <div class="page-header-actions">
+        <div class="notif-wrapper">
+            <button type="button" id="notif-bell" class="icon-button" aria-label="Bouteilles à boire bientôt" title="Bouteilles à boire bientôt">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {% if a_boire_bientot %}<span class="notif-badge">{{ a_boire_bientot|length }}</span>{% endif %}
+            </button>
+            <div class="notif-popover" id="notif-popover" hidden>
+                <h3>À boire bientôt</h3>
+                {% if a_boire_bientot %}
+                <ul>
+                    {% for b in a_boire_bientot %}
+                    <li>
+                        <a href="/bouteilles/{{ b.id }}">{{ b.nom }}</a>
+                        {% if b.apogee_fin %}<span class="soft">— apogée jusqu'en {{ b.apogee_fin }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="soft">Rien d'urgent pour l'instant.</p>
+                {% endif %}
+            </div>
+        </div>
         <form method="post" action="/bouteilles/fusionner" id="fusion-form" class="header-form">
             <button type="submit" class="button button-secondary" title="Regrouper les bouteilles identiques et cumuler leur quantité">Actualiser</button>
         </form>
@@ -14,7 +38,6 @@
     </div>
 </header>
 
-{% include "_alerte_apogee.html" %}
 {% if erreur %}<p class="erreur">{{ erreur }}</p>{% endif %}
 {% if info %}<p class="info">{{ info }}</p>{% endif %}
 
@@ -88,4 +111,22 @@
 {% else %}
 <p class="empty-state">Ta cave est vide pour l'instant. <a href="/bouteilles/nouvelle">Ajoute ta première bouteille</a>.</p>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var cloche = document.getElementById("notif-bell");
+    var popover = document.getElementById("notif-popover");
+    if (cloche) {
+        cloche.addEventListener("click", function (event) {
+            event.stopPropagation();
+            popover.hidden = !popover.hidden;
+        });
+        document.addEventListener("click", function (event) {
+            if (!popover.hidden && !popover.contains(event.target) && event.target !== cloche) {
+                popover.hidden = true;
+            }
+        });
+    }
+</script>
 {% endblock %}

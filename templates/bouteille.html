@@ -29,6 +29,25 @@
 
         {% if b.note %}<p class="note-perso">{{ b.note }}</p>{% endif %}
 
+        <div class="apogee-inline">
+            {% if b.apogee_debut %}
+            {% set statut_apogee = "depassee" if b.apogee_fin < annee else ("urgent" if b.apogee_fin == annee else ("prete" if b.apogee_debut <= annee else "attente")) %}
+            <span class="apogee-inline-range">Apogée {{ b.apogee_debut }}–{{ b.apogee_fin }}</span>
+            <span class="statut-badge statut-{{ statut_apogee }}">
+                {% if statut_apogee == "depassee" %}Dépassée
+                {% elif statut_apogee == "urgent" %}Se dépêcher
+                {% elif statut_apogee == "prete" %}À boire
+                {% else %}Pas encore{% endif %}
+            </span>
+            {% else %}
+            <span class="soft">Apogée non estimée</span>
+            {% endif %}
+            <form method="post" action="/bouteilles/{{ b.id }}/apogee" class="llm-action inline-form">
+                <input type="hidden" name="next" value="/bouteilles/{{ b.id }}">
+                <button type="submit">{{ "Ré-estimer" if b.apogee_debut else "Estimer" }}</button>
+            </form>
+        </div>
+
         <div class="card-actions">
             {% if b.statut == "en_cave" %}
             <form method="post" action="/bouteilles/{{ b.id }}/marquer-bue">
@@ -45,41 +64,19 @@
             {% endif %}
         </div>
     </div>
-</div>
 
-<div class="detail-sections">
-    <section class="detail-card">
-        <h2>Apogée</h2>
-        {% if b.apogee_debut %}
-        {% set statut_apogee = "depassee" if b.apogee_fin < annee else ("urgent" if b.apogee_fin == annee else ("prete" if b.apogee_debut <= annee else "attente")) %}
-        <p class="apogee-range">{{ b.apogee_debut }} — {{ b.apogee_fin }}</p>
-        <span class="statut-badge statut-{{ statut_apogee }}">
-            {% if statut_apogee == "depassee" %}Apogée dépassée
-            {% elif statut_apogee == "urgent" %}Se dépêcher
-            {% elif statut_apogee == "prete" %}À boire maintenant
-            {% else %}Pas encore prête{% endif %}
-        </span>
-        {% else %}
-        <p class="soft">Pas encore estimée.</p>
-        {% endif %}
-        <form method="post" action="/bouteilles/{{ b.id }}/apogee" class="llm-action">
-            <input type="hidden" name="next" value="/bouteilles/{{ b.id }}">
-            <button type="submit">{{ "Ré-estimer l'apogée" if b.apogee_debut else "Estimer l'apogée" }}</button>
-        </form>
-    </section>
-
-    <section class="detail-card">
+    <div class="bottle-detail-accord">
         <h2>Accord mets &amp; vin</h2>
         {% if b.accord_mets %}
         <p class="accord-texte">{{ b.accord_mets }}</p>
         {% else %}
-        <p class="soft">Pas encore de suggestion.</p>
+        <p class="soft detail-empty">Pas encore de suggestion.</p>
         {% endif %}
         <form method="post" action="/bouteilles/{{ b.id }}/accord" class="llm-action">
             <input type="hidden" name="next" value="/bouteilles/{{ b.id }}">
             <button type="submit">{{ "Actualiser l'accord" if b.accord_mets else "Suggérer un accord" }}</button>
         </form>
-    </section>
+    </div>
 </div>
 {% endblock %}
 

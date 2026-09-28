@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+from datetime import date
 
 from groq import Groq
 
@@ -68,6 +69,7 @@ def _extract_json(content: str) -> dict:
 
 def estimer_apogee(bottle: sqlite3.Row) -> tuple[int, int]:
     description = _decrire_bouteille(bottle)
+    annee_actuelle = date.today().year
     response = get_client().chat.completions.create(
         model=MODEL,
         temperature=0,
@@ -77,16 +79,22 @@ def estimer_apogee(bottle: sqlite3.Row) -> tuple[int, int]:
             {
                 "role": "user",
                 "content": (
-                    "Tu es sommelier. Estime la fenêtre d'apogée (période idéale de "
-                    "consommation) de ce vin, en te basant sur son type, son millésime "
-                    "et sa région. Réponds uniquement en français, avec un objet JSON de la forme "
-                    '{"apogee_debut": annee, "apogee_fin": annee} (années entières). '
-                    "Si le millésime est inconnu, base-toi sur une bouteille achetée "
-                    "récemment.\n\n"
+                    f"Nous sommes en {annee_actuelle}. Tu es sommelier. Estime la fenêtre "
+                    "d'apogée (période idéale de consommation) de ce vin, en te basant sur "
+                    "son type, son millésime et sa région. Réponds uniquement en français, "
+                    "avec un objet JSON de la forme "
+                    '{"apogee_debut": annee, "apogee_fin": annee}. '
+                    "IMPORTANT : apogee_debut et apogee_fin doivent être des ANNÉES CALENDAIRES "
+                    f"ABSOLUES à 4 chiffres (par exemple {annee_actuelle + 2}), jamais un nombre "
+                    "d'années ou un décalage relatif. Si le millésime est inconnu, base-toi sur "
+                    "une bouteille achetée récemment.\n\n"
                     f"Vin : {description}"
                 ),
             }
         ],
     )
     data = _extract_json(response.choices[0].message.content)
-    return int(data["apogee_debut"]), int(data["apogee_fin"])
+    debut, fin = int(data["apogee_debut"]), int(data["apogee_fin"])
+    if not (1900 <= debut <= 2200) or not (1900 <= fin <= 2200):
+        raise ValueError(f"Années d'apogée invalides reçues du modèle : {debut}-{fin}")
+    return debut, fin
