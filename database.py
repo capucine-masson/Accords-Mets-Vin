@@ -210,3 +210,44 @@ def list_a_boire_bientot(proprietaire: str, dans_les_jours: int = 180) -> list[s
         ).fetchall()
     finally:
         conn.close()
+
+
+def fusionner_doublons(proprietaire: str) -> int:
+    """Regroupe les bouteilles identiques (même nom/domaine/millésime/couleur)
+    de la cave d'un propriétaire en une seule ligne, quantité cumulée."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM bottles WHERE proprietaire = ? AND statut = ? ORDER BY id",
+            (proprietaire, StatutBouteille.EN_CAVE.value),
+        ).fetchall()
+
+        groupes: dict[tuple, list[sqlite3.Row]] = {}
+        for r in rows:
+            cle = (
+                (r["nom"] or "").strip().lower(),
+                (r["domaine"] or "").strip().lower(),
+                r["millesime"],
+                r["couleur"],
+            )
+            groupes.setdefault(cle, []).append(r)
+
+        fusions = 0
+        for groupe in groupes.values():
+            if len(groupe) < 2:
+                continue
+            principal, doublons = groupe[0], groupe[1:]
+            quantite_totale = sum(g["quantite"] for g in groupe)
+            conn.execute(
+                "UPDATE bottles SET quantite = ? WHERE id = ?",
+                (quantite_totale, principal["id"]),
+            )
+            conn.executemany(
+                "DELETE FROM bottles WHERE id = ?",
+                [(d["id"],) for d in doublons],
+            )
+            fusions += 1
+        conn.commit()
+        return fusions
+    finally:
+        conn.close()

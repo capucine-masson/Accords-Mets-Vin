@@ -15,7 +15,7 @@
     <div class="bottle-card bottle-card-static" data-couleur="{{ b.couleur }}">
         <a href="/bouteilles/{{ b.id }}" class="bottle-card-link">
             {% if b.photo_path %}
-            <img src="/static/uploads/{{ b.photo_path }}" alt="{{ b.nom }}" class="bottle-photo">
+            <img src="/static/uploads/{{ b.proprietaire }}/{{ b.photo_path }}" alt="{{ b.nom }}" class="bottle-photo">
             {% else %}
             <div class="bottle-photo bottle-photo-placeholder" data-couleur="{{ b.couleur }}"><span class="couleur-dot" data-couleur="{{ b.couleur }}"></span></div>
             {% endif %}

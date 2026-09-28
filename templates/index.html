@@ -7,12 +7,16 @@
         <p class="soft">{{ bottles|length }} bouteille(s) en cave.</p>
     </div>
     <div class="page-header-actions">
+        <form method="post" action="/bouteilles/fusionner" id="fusion-form" class="header-form">
+            <button type="submit" class="button button-secondary" title="Regrouper les bouteilles identiques et cumuler leur quantité">Actualiser</button>
+        </form>
         <a class="button" href="/bouteilles/nouvelle">+ Ajouter des bouteilles</a>
     </div>
 </header>
 
 {% include "_alerte_apogee.html" %}
 {% if erreur %}<p class="erreur">{{ erreur }}</p>{% endif %}
+{% if info %}<p class="info">{{ info }}</p>{% endif %}
 
 <form class="filters" method="get" action="/">
     <div>
@@ -63,12 +67,12 @@
         {% for b in groupe.bottles %}
         <a class="bottle-card" href="/bouteilles/{{ b.id }}" data-couleur="{{ b.couleur }}">
             {% if b.photo_path %}
-            <img src="/static/uploads/{{ b.photo_path }}" alt="{{ b.nom }}" class="bottle-photo">
+            <img src="/static/uploads/{{ b.proprietaire }}/{{ b.photo_path }}" alt="{{ b.nom }}" class="bottle-photo">
             {% else %}
             <div class="bottle-photo bottle-photo-placeholder" data-couleur="{{ b.couleur }}"><span class="couleur-dot" data-couleur="{{ b.couleur }}"></span></div>
             {% endif %}
             <div class="bottle-card-body">
-                <h2>{{ b.nom }}</h2>
+                <h2>{{ b.nom }}{% if b.quantite > 1 %} <span class="quantite-badge">&times;{{ b.quantite }}</span>{% endif %}</h2>
                 {% if b.domaine %}<p class="domaine">{{ b.domaine }}</p>{% endif %}
                 <p class="meta">
                     {% if b.millesime %}{{ b.millesime }} &middot; {% endif %}{{ b.couleur }}

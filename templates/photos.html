@@ -23,7 +23,7 @@
     <div class="photo-grid">
         {% for p in photos %}
         <div class="photo-item">
-            <img src="/static/uploads/{{ p.name }}" alt="Photo de bouteille" class="photo-thumb">
+            <img src="/static/uploads/{{ upload_prefix }}/{{ p.name }}" alt="Photo de bouteille" class="photo-thumb">
             {% if p.utilisee %}
             <span class="badge">Déjà utilisée</span>
             {% else %}

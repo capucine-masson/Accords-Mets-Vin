@@ -7,7 +7,7 @@
 <div class="bottle-detail" data-couleur="{{ b.couleur }}">
     <div class="bottle-detail-photo">
         {% if b.photo_path %}
-        <img src="/static/uploads/{{ b.photo_path }}" alt="{{ b.nom }}">
+        <img src="/static/uploads/{{ b.proprietaire }}/{{ b.photo_path }}" alt="{{ b.nom }}">
         {% else %}
         <div class="bottle-photo-placeholder large" data-couleur="{{ b.couleur }}"><span class="couleur-dot lg" data-couleur="{{ b.couleur }}"></span></div>
         {% endif %}
@@ -33,7 +33,9 @@
             {% if b.statut == "en_cave" %}
             <form method="post" action="/bouteilles/{{ b.id }}/marquer-bue">
                 <input type="hidden" name="next" value="/bouteilles/{{ b.id }}">
-                <button type="submit" class="button-subtle">Marquer bue</button>
+                <button type="submit" class="button-subtle">
+                    {% if b.quantite > 1 %}Marquer une bue (reste {{ b.quantite - 1 }}){% else %}Marquer bue{% endif %}
+                </button>
             </form>
             {% else %}
             <form method="post" action="/bouteilles/{{ b.id }}/remettre-en-cave">
@@ -49,10 +51,11 @@
     <section class="detail-card">
         <h2>Apogée</h2>
         {% if b.apogee_debut %}
-        {% set statut_apogee = "depassee" if b.apogee_fin < annee else ("prete" if b.apogee_debut <= annee else "attente") %}
+        {% set statut_apogee = "depassee" if b.apogee_fin < annee else ("urgent" if b.apogee_fin == annee else ("prete" if b.apogee_debut <= annee else "attente")) %}
         <p class="apogee-range">{{ b.apogee_debut }} — {{ b.apogee_fin }}</p>
         <span class="statut-badge statut-{{ statut_apogee }}">
             {% if statut_apogee == "depassee" %}Apogée dépassée
+            {% elif statut_apogee == "urgent" %}Se dépêcher
             {% elif statut_apogee == "prete" %}À boire maintenant
             {% else %}Pas encore prête{% endif %}
         </span>

@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from datetime import date
 from itertools import groupby
@@ -13,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from database import (
+    fusionner_doublons,
     get_bottle,
     init_db,
     insert_bottle,
@@ -57,6 +59,16 @@ app.add_middleware(
 )
 
 
+def cle_utilisateur(request: Request) -> str:
+    """Identifiant normalisé qui sépare la cave (et les photos) de chaque
+    personne : deux identifiants qui ne diffèrent que par la casse ou des
+    espaces partagent la même cave, deux identifiants différents ont chacun
+    la leur."""
+    brut = request.session.get("utilisateur", "")
+    cle = re.sub(r"[^a-z0-9_-]+", "_", brut.strip().lower())
+    return cle or "invite"
+
+
 @app.get("/login")
 def login_form(request: Request, erreur: Optional[str] = None):
     return templates.TemplateResponse(request, "login.html", {"erreur": erreur})
@@ -77,8 +89,30 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=303)
 
-UPLOAD_DIR = Path(__file__).parent / "static" / "uploads"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+UPLOAD_ROOT = Path(__file__).parent / "static" / "uploads"
+UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def _migrer_photos_historiques() -> None:
+    """Photos importées avant l'introduction des caves séparées : déplacées
+    une bonne fois pour toutes vers le dossier de l'identifiant historique."""
+    destination = UPLOAD_ROOT / "capucine"
+    a_deplacer = [f for f in UPLOAD_ROOT.iterdir() if f.is_file() and not f.name.startswith(".")]
+    if not a_deplacer:
+        return
+    destination.mkdir(parents=True, exist_ok=True)
+    for fichier in a_deplacer:
+        fichier.rename(destination / fichier.name)
+
+
+_migrer_photos_historiques()
+
+
+def upload_dir(cle: str) -> Path:
+    dossier = UPLOAD_ROOT / cle
+    dossier.mkdir(parents=True, exist_ok=True)
+    return dossier
 
 
 def safe_next(url: str) -> str:
@@ -95,13 +129,16 @@ def index(
     region: Optional[str] = None,
     cepage: Optional[str] = None,
     erreur: Optional[str] = None,
+    info: Optional[str] = None,
 ):
+    cle = cle_utilisateur(request)
     couleur = couleur or None
     region = region or None
     cepage = cepage or None
     millesime_int = int(millesime) if millesime else None
 
     bottles = list_bottles(
+        cle,
         couleur=couleur,
         millesime=millesime_int,
         region=region,
@@ -118,16 +155,17 @@ def index(
             "bottles": bottles,
             "groupes": groupes,
             "couleurs": list(Couleur),
-            "regions": list_regions(),
-            "millesimes": list_millesimes(),
+            "regions": list_regions(cle),
+            "millesimes": list_millesimes(cle),
             "filters": {
                 "couleur": couleur or "",
                 "millesime": millesime_int or "",
                 "region": region or "",
                 "cepage": cepage or "",
             },
-            "a_boire_bientot": list_a_boire_bientot(),
+            "a_boire_bientot": list_a_boire_bientot(cle),
             "erreur": erreur,
+            "info": info,
         },
     )
 
@@ -141,10 +179,11 @@ def nouvelle_bouteille(request: Request):
 
 @app.post("/bouteilles/nouvelle/photos")
 async def ajouter_par_photo(request: Request, photos: List[UploadFile] = File(...)):
+    cle = cle_utilisateur(request)
     drafts = []
     erreurs = []
     for photo in photos:
-        destination = await _sauver_photo(photo)
+        destination = await _sauver_photo(photo, cle)
         if destination is None:
             erreurs.append({"photo": photo.filename or "?", "erreur": "Fichier non reconnu comme une image."})
             continue
@@ -156,12 +195,13 @@ async def ajouter_par_photo(request: Request, photos: List[UploadFile] = File(..
     return templates.TemplateResponse(
         request,
         "brouillons.html",
-        {"drafts": drafts, "erreurs": erreurs, "couleurs": list(Couleur)},
+        {"drafts": drafts, "erreurs": erreurs, "couleurs": list(Couleur), "upload_prefix": cle},
     )
 
 
 @app.post("/bouteilles")
 def create_bottle(
+    request: Request,
     nom: str = Form(...),
     domaine: str = Form(""),
     millesime: str = Form(""),
@@ -175,8 +215,10 @@ def create_bottle(
     note: str = Form(""),
     photo_path: str = Form(""),
 ):
+    cle = cle_utilisateur(request)
     bottle_id = insert_bottle(
         {
+            "proprietaire": cle,
             "nom": nom,
             "domaine": domaine or None,
             "millesime": int(millesime) if millesime else None,
@@ -192,7 +234,7 @@ def create_bottle(
             "photo_path": photo_path or None,
         }
     )
-    bottle = get_bottle(bottle_id)
+    bottle = get_bottle(cle, bottle_id)
     try:
         update_bottle(bottle_id, {"accord_mets": suggerer_accord(bottle)})
     except Exception:
@@ -207,7 +249,7 @@ def create_bottle(
 
 @app.get("/bouteilles/{bottle_id}")
 def voir_bouteille(request: Request, bottle_id: int, erreur: Optional[str] = None):
-    bottle = get_bottle(bottle_id)
+    bottle = get_bottle(cle_utilisateur(request), bottle_id)
     if bottle is None:
         return RedirectResponse(url="/", status_code=303)
     annee = date.today().year
@@ -217,9 +259,9 @@ def voir_bouteille(request: Request, bottle_id: int, erreur: Optional[str] = Non
 
 
 @app.post("/bouteilles/{bottle_id}/accord")
-def suggerer_accord_bouteille(bottle_id: int, next: str = Form("/")):
+def suggerer_accord_bouteille(request: Request, bottle_id: int, next: str = Form("/")):
     next = safe_next(next)
-    bottle = get_bottle(bottle_id)
+    bottle = get_bottle(cle_utilisateur(request), bottle_id)
     if bottle is None:
         return RedirectResponse(url="/", status_code=303)
     try:
@@ -235,9 +277,9 @@ def suggerer_accord_bouteille(bottle_id: int, next: str = Form("/")):
 
 
 @app.post("/bouteilles/{bottle_id}/apogee")
-def estimer_apogee_bouteille(bottle_id: int, next: str = Form("/")):
+def estimer_apogee_bouteille(request: Request, bottle_id: int, next: str = Form("/")):
     next = safe_next(next)
-    bottle = get_bottle(bottle_id)
+    bottle = get_bottle(cle_utilisateur(request), bottle_id)
     if bottle is None:
         return RedirectResponse(url="/", status_code=303)
     try:
@@ -253,26 +295,48 @@ def estimer_apogee_bouteille(bottle_id: int, next: str = Form("/")):
 
 
 @app.post("/bouteilles/{bottle_id}/marquer-bue")
-def marquer_bue(bottle_id: int, next: str = Form("/")):
-    update_bottle(bottle_id, {"statut": StatutBouteille.BUE.value})
+def marquer_bue(request: Request, bottle_id: int, next: str = Form("/")):
+    bottle = get_bottle(cle_utilisateur(request), bottle_id)
+    if bottle is None:
+        return RedirectResponse(url="/", status_code=303)
+    reste = bottle["quantite"] - 1
+    if reste > 0:
+        update_bottle(bottle_id, {"quantite": reste})
+    else:
+        update_bottle(bottle_id, {"quantite": 0, "statut": StatutBouteille.BUE.value})
     return RedirectResponse(url=safe_next(next), status_code=303)
 
 
 @app.post("/bouteilles/{bottle_id}/remettre-en-cave")
-def remettre_en_cave(bottle_id: int, next: str = Form("/bues")):
-    update_bottle(bottle_id, {"statut": StatutBouteille.EN_CAVE.value})
+def remettre_en_cave(request: Request, bottle_id: int, next: str = Form("/bues")):
+    bottle = get_bottle(cle_utilisateur(request), bottle_id)
+    if bottle is None:
+        return RedirectResponse(url="/", status_code=303)
+    update_bottle(
+        bottle_id,
+        {"statut": StatutBouteille.EN_CAVE.value, "quantite": bottle["quantite"] + 1},
+    )
     return RedirectResponse(url=safe_next(next), status_code=303)
+
+
+@app.post("/bouteilles/fusionner")
+def fusionner(request: Request):
+    fusions = fusionner_doublons(cle_utilisateur(request))
+    if fusions:
+        return RedirectResponse(url=f"/?info={fusions}+doublon(s)+fusionné(s).", status_code=303)
+    return RedirectResponse(url="/?info=Aucun+doublon+trouvé.", status_code=303)
 
 
 @app.get("/bues")
 def bouteilles_bues(request: Request):
-    bottles = list_bottles(statut=StatutBouteille.BUE.value)
+    bottles = list_bottles(cle_utilisateur(request), statut=StatutBouteille.BUE.value)
     return templates.TemplateResponse(request, "bues.html", {"bottles": bottles})
 
 
 @app.get("/calendrier")
 def calendrier(request: Request, erreur: Optional[str] = None):
-    bottles = list_bottles()
+    cle = cle_utilisateur(request)
+    bottles = list_bottles(cle)
     aujourdhui = date.today()
     annee = aujourdhui.year
 
@@ -280,12 +344,20 @@ def calendrier(request: Request, erreur: Optional[str] = None):
     depassees = [
         b for b in bottles if b["apogee_fin"] is not None and b["apogee_fin"] < annee
     ]
+    se_depecher = [
+        b
+        for b in bottles
+        if b["apogee_fin"] is not None
+        and b["apogee_debut"] is not None
+        and b["apogee_debut"] <= annee
+        and b["apogee_fin"] == annee
+    ]
     a_boire = [
         b
         for b in bottles
         if b["apogee_fin"] is not None
         and b["apogee_debut"] is not None
-        and b["apogee_debut"] <= annee <= b["apogee_fin"]
+        and b["apogee_debut"] <= annee < b["apogee_fin"]
     ]
     pas_encore_prete = [
         b for b in bottles if b["apogee_debut"] is not None and b["apogee_debut"] > annee
@@ -296,10 +368,11 @@ def calendrier(request: Request, erreur: Optional[str] = None):
         "calendrier.html",
         {
             "depassees": depassees,
+            "se_depecher": se_depecher,
             "a_boire": a_boire,
             "pas_encore_prete": pas_encore_prete,
             "pas_estimees": pas_estimees,
-            "a_boire_bientot": list_a_boire_bientot(),
+            "a_boire_bientot": list_a_boire_bientot(cle),
             "erreur": erreur,
         },
     )
@@ -310,47 +383,54 @@ def nouvelle_photo(request: Request):
     return templates.TemplateResponse(request, "nouvelle_photo.html", {})
 
 
-async def _sauver_photo(photo: UploadFile) -> Optional[Path]:
+async def _sauver_photo(photo: UploadFile, cle: str) -> Optional[Path]:
     if not (photo.content_type or "").startswith("image/"):
         return None
     extension = Path(photo.filename or "").suffix
     unique_name = f"{uuid.uuid4().hex}{extension}"
-    destination = UPLOAD_DIR / unique_name
+    destination = upload_dir(cle) / unique_name
     with destination.open("wb") as f:
         f.write(await photo.read())
     return destination
 
 
 @app.post("/photos")
-async def upload_photos(photos: List[UploadFile] = File(...)):
+async def upload_photos(request: Request, photos: List[UploadFile] = File(...)):
+    cle = cle_utilisateur(request)
     for photo in photos:
-        await _sauver_photo(photo)
+        await _sauver_photo(photo, cle)
     return RedirectResponse(url="/photos", status_code=303)
 
 
 @app.get("/photos")
 def list_photos(request: Request):
+    cle = cle_utilisateur(request)
+    dossier = upload_dir(cle)
     files = sorted(
-        (f for f in UPLOAD_DIR.iterdir() if f.is_file() and not f.name.startswith(".")),
+        (f for f in dossier.iterdir() if f.is_file() and not f.name.startswith(".")),
         key=lambda f: f.stat().st_mtime,
         reverse=True,
     )
-    used = list_used_photo_paths()
+    used = list_used_photo_paths(cle)
     photos = [{"name": f.name, "utilisee": f.name in used} for f in files]
     a_analyser = sum(1 for p in photos if not p["utilisee"])
     return templates.TemplateResponse(
-        request, "photos.html", {"photos": photos, "a_analyser": a_analyser}
+        request,
+        "photos.html",
+        {"photos": photos, "a_analyser": a_analyser, "upload_prefix": cle},
     )
 
 
 @app.post("/photos/analyser")
 def analyser_photos(request: Request, photos: List[str] = Form([])):
-    used = list_used_photo_paths()
+    cle = cle_utilisateur(request)
+    dossier = upload_dir(cle)
+    used = list_used_photo_paths(cle)
     a_traiter = []
     for name in photos:
         if name in used or Path(name).name != name:
             continue
-        photo_file = UPLOAD_DIR / name
+        photo_file = dossier / name
         if photo_file.is_file():
             a_traiter.append(photo_file)
 
@@ -365,16 +445,17 @@ def analyser_photos(request: Request, photos: List[str] = Form([])):
     return templates.TemplateResponse(
         request,
         "brouillons.html",
-        {"drafts": drafts, "erreurs": erreurs, "couleurs": list(Couleur)},
+        {"drafts": drafts, "erreurs": erreurs, "couleurs": list(Couleur), "upload_prefix": cle},
     )
 
 
 @app.post("/photos/{name}/supprimer")
-def supprimer_photo(name: str):
+def supprimer_photo(request: Request, name: str):
     if Path(name).name != name:
         return RedirectResponse(url="/photos", status_code=303)
-    if name not in list_used_photo_paths():
-        photo_file = UPLOAD_DIR / name
+    cle = cle_utilisateur(request)
+    if name not in list_used_photo_paths(cle):
+        photo_file = upload_dir(cle) / name
         if photo_file.is_file():
             photo_file.unlink()
     return RedirectResponse(url="/photos", status_code=303)

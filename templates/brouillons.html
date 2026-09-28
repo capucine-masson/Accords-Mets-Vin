@@ -2,8 +2,12 @@
 {% block title %}Brouillons détectés — Apogée Wine{% endblock %}
 {% block content %}
 <p><a class="soft" href="/photos">&larr; Retour aux photos</a></p>
-<h1>Bouteilles détectées</h1>
-<p class="soft">Vérifie et corrige les champs avant d'ajouter chaque bouteille à ta cave. Rien n'est enregistré tant que tu ne cliques pas sur "Ajouter". L'accord mets et l'apogée seront estimés automatiquement à l'ajout.</p>
+<header class="page-header">
+    <div>
+        <h1>Bouteilles détectées</h1>
+        <p class="soft">Vérifie et corrige les champs avant d'ajouter chaque bouteille à ta cave. Rien n'est enregistré tant que tu ne cliques pas sur "Ajouter". L'accord mets et l'apogée seront estimés automatiquement à l'ajout.</p>
+    </div>
+</header>
 
 {% if erreurs %}
 <div class="erreurs">
@@ -21,7 +25,7 @@
 <div class="draft-grid">
     {% for d in drafts %}
     <div class="draft-card">
-        <img src="/static/uploads/{{ d.photo_path }}" alt="Photo source" class="draft-thumb">
+        <img src="/static/uploads/{{ upload_prefix }}/{{ d.photo_path }}" alt="Photo source" class="draft-thumb">
         <form method="post" action="/bouteilles" id="draft-form-{{ loop.index }}">
             <input type="hidden" name="photo_path" value="{{ d.photo_path }}">
 
