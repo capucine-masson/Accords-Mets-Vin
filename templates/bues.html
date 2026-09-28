@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Bouteilles bues — Apogée Wine{% endblock %}
+{% block content %}
+<p><a class="soft" href="/">&larr; Retour à la cave</a></p>
+<header class="page-header">
+    <div>
+        <h1>Bouteilles bues</h1>
+        <p class="soft">{{ bottles|length }} bouteille(s).</p>
+    </div>
+</header>
+
+{% if bottles %}
+<div class="bottle-grid">
+    {% for b in bottles %}
+    <div class="bottle-card bottle-card-static" data-couleur="{{ b.couleur }}">
+        <a href="/bouteilles/{{ b.id }}" class="bottle-card-link">
+            {% if b.photo_path %}
+            <img src="/static/uploads/{{ b.photo_path }}" alt="{{ b.nom }}" class="bottle-photo">
+            {% else %}
+            <div class="bottle-photo bottle-photo-placeholder" data-couleur="{{ b.couleur }}"><span class="couleur-dot" data-couleur="{{ b.couleur }}"></span></div>
+            {% endif %}
+            <div class="bottle-card-body">
+                <h2>{{ b.nom }}</h2>
+                {% if b.domaine %}<p class="domaine">{{ b.domaine }}</p>{% endif %}
+                <p class="meta">{% if b.millesime %}{{ b.millesime }} &middot; {% endif %}{{ b.couleur }}</p>
+            </div>
+        </a>
+        <div class="card-actions">
+            <form method="post" action="/bouteilles/{{ b.id }}/remettre-en-cave">
+                <button type="submit" class="button-subtle">Remettre en cave</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">Aucune bouteille bue pour l'instant.</p>
+{% endif %}
+{% endblock %}

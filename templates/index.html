@@ -1,91 +1,88 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apogée Wine</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="page">
-        <header class="page-header">
-            <div>
-                <h1>Ma cave</h1>
-                <p class="muted">{{ bottles|length }} bouteille(s) en cave.</p>
-            </div>
-            <div class="page-header-actions">
-                <a class="button button-secondary" href="/photos/nouvelle">Importer des photos</a>
-                <a class="button" href="/bouteilles/nouvelle">+ Ajouter une bouteille</a>
-            </div>
-        </header>
+{% extends "base.html" %}
+{% block title %}Ma cave — Apogée Wine{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Ma cave</h1>
+        <p class="soft">{{ bottles|length }} bouteille(s) en cave.</p>
+    </div>
+    <div class="page-header-actions">
+        <a class="button button-secondary" href="/photos/nouvelle">Importer des photos</a>
+        <a class="button" href="/bouteilles/nouvelle">+ Ajouter une bouteille</a>
+    </div>
+</header>
 
-        <form class="filters" method="get" action="/">
-            <div>
-                <label for="f-couleur">Couleur</label>
-                <select id="f-couleur" name="couleur">
-                    <option value="">Toutes</option>
-                    {% for c in couleurs %}
-                    <option value="{{ c.value }}" {% if filters.couleur == c.value %}selected{% endif %}>{{ c.value }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="f-millesime">Millésime</label>
-                <select id="f-millesime" name="millesime">
-                    <option value="">Tous</option>
-                    {% for m in millesimes %}
-                    <option value="{{ m }}" {% if filters.millesime|string == m|string %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="f-region">Région</label>
-                <select id="f-region" name="region">
-                    <option value="">Toutes</option>
-                    {% for r in regions %}
-                    <option value="{{ r }}" {% if filters.region == r %}selected{% endif %}>{{ r }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="f-cepage">Cépage</label>
-                <input type="text" id="f-cepage" name="cepage" value="{{ filters.cepage }}" placeholder="ex: Syrah">
-            </div>
-            <div class="filters-actions">
-                <button type="submit">Filtrer</button>
-                <a class="muted" href="/">Réinitialiser</a>
-            </div>
-        </form>
+{% include "_alerte_apogee.html" %}
+{% if erreur %}<p class="erreur">{{ erreur }}</p>{% endif %}
 
-        {% if bottles %}
-        <div class="bottle-grid">
-            {% for b in bottles %}
-            <article class="bottle-card" data-couleur="{{ b.couleur }}">
-                <div class="bottle-card-header">
-                    <span class="couleur-dot" data-couleur="{{ b.couleur }}"></span>
-                    <h2>{{ b.nom }}</h2>
-                </div>
+<form class="filters" method="get" action="/">
+    <div>
+        <label for="f-couleur">Couleur</label>
+        <select id="f-couleur" name="couleur">
+            <option value="">Toutes</option>
+            {% for c in couleurs %}
+            <option value="{{ c.value }}" {% if filters.couleur == c.value %}selected{% endif %}>{{ c.value }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="f-millesime">Millésime</label>
+        <select id="f-millesime" name="millesime">
+            <option value="">Tous</option>
+            {% for m in millesimes %}
+            <option value="{{ m }}" {% if filters.millesime|string == m|string %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="f-region">Région</label>
+        <select id="f-region" name="region">
+            <option value="">Toutes</option>
+            {% for r in regions %}
+            <option value="{{ r }}" {% if filters.region == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="f-cepage">Cépage</label>
+        <input type="text" id="f-cepage" name="cepage" value="{{ filters.cepage }}" placeholder="ex: Syrah">
+    </div>
+    <div class="filters-actions">
+        <button type="submit">Filtrer</button>
+        <a class="soft" href="/">Réinitialiser</a>
+    </div>
+</form>
+
+{% if bottles %}
+{% for groupe in groupes %}
+<section class="couleur-groupe">
+    <h2 class="couleur-groupe-titre" data-couleur="{{ groupe.couleur }}">
+        <span class="couleur-dot" data-couleur="{{ groupe.couleur }}"></span>
+        {{ groupe.label }}
+    </h2>
+    <div class="bottle-grid">
+        {% for b in groupe.bottles %}
+        <a class="bottle-card" href="/bouteilles/{{ b.id }}" data-couleur="{{ b.couleur }}">
+            {% if b.photo_path %}
+            <img src="/static/uploads/{{ b.photo_path }}" alt="{{ b.nom }}" class="bottle-photo">
+            {% else %}
+            <div class="bottle-photo bottle-photo-placeholder" data-couleur="{{ b.couleur }}"><span class="couleur-dot" data-couleur="{{ b.couleur }}"></span></div>
+            {% endif %}
+            <div class="bottle-card-body">
+                <h2>{{ b.nom }}</h2>
                 {% if b.domaine %}<p class="domaine">{{ b.domaine }}</p>{% endif %}
                 <p class="meta">
-                    {% if b.millesime %}{{ b.millesime }} &middot; {% endif %}
-                    {{ b.couleur }}
-                    {% if b.region or b.pays %} &middot; {{ [b.region, b.pays] | select | join(", ") }}{% endif %}
+                    {% if b.millesime %}{{ b.millesime }} &middot; {% endif %}{{ b.couleur }}
                 </p>
-                {% if b.cepages %}<p class="cepages">{{ b.cepages }}</p>{% endif %}
-                <p class="meta">
-                    Quantité : {{ b.quantite }}
-                    {% if b.prix_achat %} &middot; {{ "%.2f"|format(b.prix_achat) }} €{% endif %}
-                </p>
-                {% if b.note %}<p class="note">{{ b.note }}</p>{% endif %}
-                {% if b.date_achat %}<p class="muted small">Acheté le {{ b.date_achat }}</p>{% endif %}
-            </article>
-            {% endfor %}
-        </div>
-        {% elif filters.couleur or filters.millesime or filters.region or filters.cepage %}
-        <p class="empty-state">Aucune bouteille ne correspond à ces filtres. <a href="/">Réinitialiser</a>.</p>
-        {% else %}
-        <p class="empty-state">Ta cave est vide pour l'instant. <a href="/bouteilles/nouvelle">Ajoute ta première bouteille</a>.</p>
-        {% endif %}
+            </div>
+        </a>
+        {% endfor %}
     </div>
-</body>
-</html>
+</section>
+{% endfor %}
+{% elif filters.couleur or filters.millesime or filters.region or filters.cepage %}
+<p class="empty-state">Aucune bouteille ne correspond à ces filtres. <a href="/">Réinitialiser</a>.</p>
+{% else %}
+<p class="empty-state">Ta cave est vide pour l'instant. <a href="/bouteilles/nouvelle">Ajoute ta première bouteille</a>.</p>
+{% endif %}
+{% endblock %}

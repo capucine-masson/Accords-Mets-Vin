@@ -1,0 +1,8 @@
+{% if a_boire_bientot %}
+<div class="alerte-apogee">
+    <strong>À boire bientôt :</strong>
+    {% for b in a_boire_bientot %}
+    {{ b.nom }}{% if b.apogee_fin %} (apogée jusqu'en {{ b.apogee_fin }}){% endif %}{% if not loop.last %}, {% endif %}
+    {% endfor %}
+</div>
+{% endif %}

@@ -1,4 +1,7 @@
+import os
 import uuid
+from datetime import date
+from itertools import groupby
 from pathlib import Path
 from typing import List, Optional
 
@@ -7,16 +10,21 @@ from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from database import (
+    get_bottle,
     init_db,
     insert_bottle,
+    list_a_boire_bientot,
     list_bottles,
     list_millesimes,
     list_regions,
     list_used_photo_paths,
+    update_bottle,
 )
-from enums import Couleur
+from enums import COULEUR_LABELS, Couleur, StatutBouteille
+from conseils import estimer_apogee, suggerer_accord
 from vision import analyser_photo
 
 load_dotenv()
@@ -27,8 +35,56 @@ templates = Jinja2Templates(directory="templates")
 
 init_db()
 
+PUBLIC_PATHS = {"/login"}
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith("/static/"):
+        return await call_next(request)
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=303)
+    return await call_next(request)
+
+
+# Starlette exécute le DERNIER middleware ajouté en PREMIER : SessionMiddleware
+# doit donc être ajouté après require_login pour que request.session existe
+# quand require_login s'exécute.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ.get("APP_SECRET_KEY", "dev-secret-a-changer"),
+)
+
+
+@app.get("/login")
+def login_form(request: Request, erreur: Optional[str] = None):
+    return templates.TemplateResponse(request, "login.html", {"erreur": erreur})
+
+
+@app.post("/login")
+def login(request: Request, identifiant: str = Form(...)):
+    identifiant = identifiant.strip()
+    if not identifiant:
+        return RedirectResponse(url="/login?erreur=1", status_code=303)
+    request.session["authenticated"] = True
+    request.session["utilisateur"] = identifiant
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
+
 UPLOAD_DIR = Path(__file__).parent / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def safe_next(url: str) -> str:
+    if not url.startswith("/") or url.startswith("//"):
+        return "/"
+    return url
 
 
 @app.get("/")
@@ -38,6 +94,7 @@ def index(
     millesime: Optional[str] = None,
     region: Optional[str] = None,
     cepage: Optional[str] = None,
+    erreur: Optional[str] = None,
 ):
     couleur = couleur or None
     region = region or None
@@ -50,11 +107,16 @@ def index(
         region=region,
         cepage=cepage,
     )
+    groupes = [
+        {"couleur": c, "label": COULEUR_LABELS.get(c, c), "bottles": list(items)}
+        for c, items in groupby(bottles, key=lambda b: b["couleur"])
+    ]
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "bottles": bottles,
+            "groupes": groupes,
             "couleurs": list(Couleur),
             "regions": list_regions(),
             "millesimes": list_millesimes(),
@@ -64,6 +126,8 @@ def index(
                 "region": region or "",
                 "cepage": cepage or "",
             },
+            "a_boire_bientot": list_a_boire_bientot(),
+            "erreur": erreur,
         },
     )
 
@@ -90,7 +154,7 @@ def create_bottle(
     note: str = Form(""),
     photo_path: str = Form(""),
 ):
-    insert_bottle(
+    bottle_id = insert_bottle(
         {
             "nom": nom,
             "domaine": domaine or None,
@@ -107,7 +171,117 @@ def create_bottle(
             "photo_path": photo_path or None,
         }
     )
-    return RedirectResponse(url="/", status_code=303)
+    bottle = get_bottle(bottle_id)
+    try:
+        update_bottle(bottle_id, {"accord_mets": suggerer_accord(bottle)})
+    except Exception:
+        pass
+    try:
+        debut, fin = estimer_apogee(bottle)
+        update_bottle(bottle_id, {"apogee_debut": debut, "apogee_fin": fin})
+    except Exception:
+        pass
+    return RedirectResponse(url=f"/bouteilles/{bottle_id}", status_code=303)
+
+
+@app.get("/bouteilles/{bottle_id}")
+def voir_bouteille(request: Request, bottle_id: int, erreur: Optional[str] = None):
+    bottle = get_bottle(bottle_id)
+    if bottle is None:
+        return RedirectResponse(url="/", status_code=303)
+    annee = date.today().year
+    return templates.TemplateResponse(
+        request, "bouteille.html", {"b": bottle, "annee": annee, "erreur": erreur}
+    )
+
+
+@app.post("/bouteilles/{bottle_id}/accord")
+def suggerer_accord_bouteille(bottle_id: int, next: str = Form("/")):
+    next = safe_next(next)
+    bottle = get_bottle(bottle_id)
+    if bottle is None:
+        return RedirectResponse(url="/", status_code=303)
+    try:
+        accord = suggerer_accord(bottle)
+        update_bottle(bottle_id, {"accord_mets": accord})
+    except Exception:
+        sep = "&" if "?" in next else "?"
+        return RedirectResponse(
+            url=f"{next}{sep}erreur=Impossible+de+contacter+Groq+pour+l%27accord+mets",
+            status_code=303,
+        )
+    return RedirectResponse(url=next, status_code=303)
+
+
+@app.post("/bouteilles/{bottle_id}/apogee")
+def estimer_apogee_bouteille(bottle_id: int, next: str = Form("/")):
+    next = safe_next(next)
+    bottle = get_bottle(bottle_id)
+    if bottle is None:
+        return RedirectResponse(url="/", status_code=303)
+    try:
+        debut, fin = estimer_apogee(bottle)
+        update_bottle(bottle_id, {"apogee_debut": debut, "apogee_fin": fin})
+    except Exception:
+        sep = "&" if "?" in next else "?"
+        return RedirectResponse(
+            url=f"{next}{sep}erreur=Impossible+de+contacter+Groq+pour+l%27apogee",
+            status_code=303,
+        )
+    return RedirectResponse(url=next, status_code=303)
+
+
+@app.post("/bouteilles/{bottle_id}/marquer-bue")
+def marquer_bue(bottle_id: int, next: str = Form("/")):
+    update_bottle(bottle_id, {"statut": StatutBouteille.BUE.value})
+    return RedirectResponse(url=safe_next(next), status_code=303)
+
+
+@app.post("/bouteilles/{bottle_id}/remettre-en-cave")
+def remettre_en_cave(bottle_id: int, next: str = Form("/bues")):
+    update_bottle(bottle_id, {"statut": StatutBouteille.EN_CAVE.value})
+    return RedirectResponse(url=safe_next(next), status_code=303)
+
+
+@app.get("/bues")
+def bouteilles_bues(request: Request):
+    bottles = list_bottles(statut=StatutBouteille.BUE.value)
+    return templates.TemplateResponse(request, "bues.html", {"bottles": bottles})
+
+
+@app.get("/calendrier")
+def calendrier(request: Request, erreur: Optional[str] = None):
+    bottles = list_bottles()
+    aujourdhui = date.today()
+    annee = aujourdhui.year
+
+    pas_estimees = [b for b in bottles if b["apogee_fin"] is None]
+    depassees = [
+        b for b in bottles if b["apogee_fin"] is not None and b["apogee_fin"] < annee
+    ]
+    a_boire = [
+        b
+        for b in bottles
+        if b["apogee_fin"] is not None
+        and b["apogee_debut"] is not None
+        and b["apogee_debut"] <= annee <= b["apogee_fin"]
+    ]
+    pas_encore_prete = [
+        b for b in bottles if b["apogee_debut"] is not None and b["apogee_debut"] > annee
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "calendrier.html",
+        {
+            "depassees": depassees,
+            "a_boire": a_boire,
+            "pas_encore_prete": pas_encore_prete,
+            "pas_estimees": pas_estimees,
+            "a_boire_bientot": list_a_boire_bientot(),
+            "erreur": erreur,
+        },
+    )
 
 
 @app.get("/photos/nouvelle")

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Calendrier d'apogée — Apogée Wine{% endblock %}
+{% block content %}
+<p><a class="soft" href="/">&larr; Retour à la cave</a></p>
+<header class="page-header">
+    <div>
+        <h1>Calendrier d'apogée</h1>
+        <p class="soft">Quand ouvrir chaque bouteille.</p>
+    </div>
+</header>
+{% if erreur %}<p class="erreur">{{ erreur }}</p>{% endif %}
+
+<div class="calendrier-board">
+    <div class="calendrier-colonne">
+        <h2 class="colonne-titre statut-depassee">Apogée dépassée</h2>
+        {% if depassees %}
+        {% for b in depassees %}
+        <a class="calendrier-chip" href="/bouteilles/{{ b.id }}" data-couleur="{{ b.couleur }}">
+            <span class="couleur-dot" data-couleur="{{ b.couleur }}"></span>
+            <span class="chip-texte">
+                <strong>{{ b.nom }}</strong>
+                <span class="soft">jusqu'en {{ b.apogee_fin }}</span>
+            </span>
+        </a>
+        {% endfor %}
+        {% else %}
+        <p class="soft">Aucune bouteille en retard.</p>
+        {% endif %}
+    </div>
+
+    <div class="calendrier-colonne">
+        <h2 class="colonne-titre statut-prete">À boire maintenant</h2>
+        {% if a_boire %}
+        {% for b in a_boire %}
+        <a class="calendrier-chip" href="/bouteilles/{{ b.id }}" data-couleur="{{ b.couleur }}">
+            <span class="couleur-dot" data-couleur="{{ b.couleur }}"></span>
+            <span class="chip-texte">
+                <strong>{{ b.nom }}</strong>
+                <span class="soft">{{ b.apogee_debut }} - {{ b.apogee_fin }}</span>
+            </span>
+        </a>
+        {% endfor %}
+        {% else %}
+        <p class="soft">Rien à boire dans l'immédiat.</p>
+        {% endif %}
+    </div>
+
+    <div class="calendrier-colonne">
+        <h2 class="colonne-titre statut-attente">Pas encore prêtes</h2>
+        {% if pas_encore_prete %}
+        {% for b in pas_encore_prete %}
+        <a class="calendrier-chip" href="/bouteilles/{{ b.id }}" data-couleur="{{ b.couleur }}">
+            <span class="couleur-dot" data-couleur="{{ b.couleur }}"></span>
+            <span class="chip-texte">
+                <strong>{{ b.nom }}</strong>
+                <span class="soft">à partir de {{ b.apogee_debut }}</span>
+            </span>
+        </a>
+        {% endfor %}
+        {% else %}
+        <p class="soft">Rien à signaler.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if pas_estimees %}
+<section class="calendrier-section">
+    <h2 class="section-title">Apogée non estimée</h2>
+    <div class="calendrier-liste">
+        {% for b in pas_estimees %}
+        <div class="calendrier-ligne">
+            <a href="/bouteilles/{{ b.id }}"><strong>{{ b.nom }}</strong> {% if b.millesime %}({{ b.millesime }}){% endif %}</a>
+            <form method="post" action="/bouteilles/{{ b.id }}/apogee" class="llm-action inline-form">
+                <input type="hidden" name="next" value="/calendrier">
+                <button type="submit">Estimer l'apogée</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll(".llm-action").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            event.currentTarget.querySelector("button").disabled = true;
+        });
+    });
+</script>
+{% endblock %}

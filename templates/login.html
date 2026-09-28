@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Connexion — Apogée Wine{% endblock %}
+{% block content %}
+<div class="login-page">
+    <h1>Bienvenue</h1>
+    <p class="soft">Connexion factice — entre n'importe quel identifiant.</p>
+    {% if erreur %}<p class="erreur">Merci de saisir un identifiant.</p>{% endif %}
+    <form method="post" action="/login">
+        <label for="identifiant">Identifiant</label>
+        <input type="text" id="identifiant" name="identifiant" required autofocus>
+        <button type="submit">Se connecter</button>
+    </form>
+</div>
+{% endblock %}

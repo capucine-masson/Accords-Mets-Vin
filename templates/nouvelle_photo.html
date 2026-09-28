@@ -1,25 +1,19 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importer des photos — Apogée Wine</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="page">
-        <p><a class="muted" href="/">&larr; Retour à la cave</a></p>
-        <h1>Importer des photos de bouteilles</h1>
-        <form method="post" action="/photos" enctype="multipart/form-data" id="upload-form">
-            <label for="photos">Photo(s)</label>
-            <input type="file" id="photos" name="photos" accept="image/*" multiple required>
-            <button type="submit">Importer</button>
-        </form>
-    </div>
-    <script>
-        document.getElementById("upload-form").addEventListener("submit", function (event) {
-            event.currentTarget.querySelector("button").disabled = true;
-        });
-    </script>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Importer des photos — Apogée Wine{% endblock %}
+{% block content %}
+<p><a class="soft" href="/photos">&larr; Retour aux photos</a></p>
+<h1>Importer des photos de bouteilles</h1>
+<form method="post" action="/photos" enctype="multipart/form-data" id="upload-form">
+    <label for="photos">Photo(s)</label>
+    <input type="file" id="photos" name="photos" accept="image/*" multiple required>
+    <button type="submit">Importer</button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById("upload-form").addEventListener("submit", function (event) {
+        event.currentTarget.querySelector("button").disabled = true;
+    });
+</script>
+{% endblock %}

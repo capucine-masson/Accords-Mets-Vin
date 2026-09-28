@@ -8,6 +8,11 @@ DB_PATH = Path(__file__).parent / "cave.db"
 COULEURS_SQL = ", ".join(f"'{c.value}'" for c in Couleur)
 STATUTS_SQL = ", ".join(f"'{s.value}'" for s in StatutBouteille)
 
+ORDRE_COULEURS = [Couleur.ROUGE.value, Couleur.BLANC.value, Couleur.EFFERVESCENT.value, Couleur.ROSE.value]
+ORDRE_COULEUR_SQL = "CASE couleur " + " ".join(
+    f"WHEN '{c}' THEN {i}" for i, c in enumerate(ORDRE_COULEURS)
+) + " ELSE 99 END"
+
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -34,15 +39,25 @@ def init_db() -> None:
                 date_achat TEXT,
                 note TEXT,
                 statut TEXT NOT NULL DEFAULT '{StatutBouteille.EN_CAVE.value}' CHECK (statut IN ({STATUTS_SQL})),
-                photo_path TEXT
+                photo_path TEXT,
+                accord_mets TEXT,
+                apogee_debut INTEGER,
+                apogee_fin INTEGER
             )
             """
         )
         existing_columns = {
             row[1] for row in conn.execute("PRAGMA table_info(bottles)")
         }
-        if "photo_path" not in existing_columns:
-            conn.execute("ALTER TABLE bottles ADD COLUMN photo_path TEXT")
+        nouvelles_colonnes = {
+            "photo_path": "TEXT",
+            "accord_mets": "TEXT",
+            "apogee_debut": "INTEGER",
+            "apogee_fin": "INTEGER",
+        }
+        for colonne, type_sql in nouvelles_colonnes.items():
+            if colonne not in existing_columns:
+                conn.execute(f"ALTER TABLE bottles ADD COLUMN {colonne} {type_sql}")
         conn.commit()
     finally:
         conn.close()
@@ -71,7 +86,10 @@ def list_bottles(
         conditions.append("cepages LIKE ?")
         params.append(f"%{cepage}%")
 
-    query = f"SELECT * FROM bottles WHERE {' AND '.join(conditions)} ORDER BY nom COLLATE NOCASE"
+    query = (
+        f"SELECT * FROM bottles WHERE {' AND '.join(conditions)} "
+        f"ORDER BY {ORDRE_COULEUR_SQL}, nom COLLATE NOCASE"
+    )
     conn = get_connection()
     try:
         return conn.execute(query, params).fetchall()
@@ -133,5 +151,45 @@ def list_used_photo_paths() -> set[str]:
             "SELECT DISTINCT photo_path FROM bottles WHERE photo_path IS NOT NULL"
         ).fetchall()
         return {r[0] for r in rows}
+    finally:
+        conn.close()
+
+
+def get_bottle(bottle_id: int) -> sqlite3.Row | None:
+    conn = get_connection()
+    try:
+        return conn.execute(
+            "SELECT * FROM bottles WHERE id = ?", (bottle_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def update_bottle(bottle_id: int, fields: dict) -> None:
+    colonnes = ", ".join(f"{cle} = :{cle}" for cle in fields)
+    conn = get_connection()
+    try:
+        conn.execute(
+            f"UPDATE bottles SET {colonnes} WHERE id = :id",
+            {**fields, "id": bottle_id},
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def list_a_boire_bientot(dans_les_jours: int = 180) -> list[sqlite3.Row]:
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT * FROM bottles
+            WHERE statut = ?
+              AND apogee_fin IS NOT NULL
+              AND apogee_fin <= CAST(strftime('%Y', 'now', ? || ' days') AS INTEGER)
+            ORDER BY apogee_fin ASC
+            """,
+            (StatutBouteille.EN_CAVE.value, dans_les_jours),
+        ).fetchall()
     finally:
         conn.close()

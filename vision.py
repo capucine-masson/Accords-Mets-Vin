@@ -1,23 +1,18 @@
 import base64
+import io
 import json
 import os
 from pathlib import Path
 
+import pillow_avif  # noqa: F401 - enregistre le décodeur AVIF pour Pillow
 from groq import Groq
+from PIL import Image
 
 from enums import Couleur
 
 MODEL = "qwen/qwen3.8-27b"
 
 _client: Groq | None = None
-
-MIME_TYPES = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-}
 
 PROMPT = """Tu regardes une photo d'une ou plusieurs bouteilles de vin.
 Identifie chaque bouteille visible et réponds UNIQUEMENT avec un objet JSON de cette forme,
@@ -63,10 +58,16 @@ def _extract_json(content: str) -> dict:
         return json.loads(content[start : end + 1])
 
 
+def _vers_jpeg(photo_file: Path) -> bytes:
+    with Image.open(photo_file) as img:
+        buffer = io.BytesIO()
+        img.convert("RGB").save(buffer, format="JPEG", quality=90)
+        return buffer.getvalue()
+
+
 def analyser_photo(photo_file: Path) -> list[dict]:
-    image_bytes = photo_file.read_bytes()
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-    mime = MIME_TYPES.get(photo_file.suffix.lower(), "image/jpeg")
+    b64 = base64.b64encode(_vers_jpeg(photo_file)).decode("utf-8")
+    mime = "image/jpeg"
 
     response = get_client().chat.completions.create(
         model=MODEL,

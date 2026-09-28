@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Apogée Wine{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cedarville+Cursive&family=Hina+Mincho&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="topnav">
+        <a class="brand" href="/">
+            <span class="brand-title">Apogée Wine</span>
+            <span class="brand-tagline">carnet de cave</span>
+        </a>
+        {% if request.session.get("authenticated") %}
+        <div class="topnav-links">
+            <a href="/">Cave</a>
+            <a href="/calendrier">Calendrier</a>
+            <a href="/bues">Bues</a>
+            <a href="/photos">Photos</a>
+        </div>
+        <div class="topnav-user">
+            <span>{{ request.session.get('utilisateur', '') }}</span>
+            <a href="/logout">Se déconnecter</a>
+        </div>
+        {% endif %}
+    </nav>
+    <div class="page">
+        {% block content %}{% endblock %}
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

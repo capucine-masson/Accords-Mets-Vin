@@ -1,85 +1,117 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brouillons détectés — Apogée Wine</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="page">
-        <p><a class="muted" href="/photos">&larr; Retour aux photos</a></p>
-        <h1>Bouteilles détectées</h1>
-        <p class="muted">Vérifie et corrige les champs avant d'ajouter chaque bouteille à ta cave. Rien n'est enregistré tant que tu ne cliques pas sur "Ajouter".</p>
+{% extends "base.html" %}
+{% block title %}Brouillons détectés — Apogée Wine{% endblock %}
+{% block content %}
+<p><a class="soft" href="/photos">&larr; Retour aux photos</a></p>
+<h1>Bouteilles détectées</h1>
+<p class="soft">Vérifie et corrige les champs avant d'ajouter chaque bouteille à ta cave. Rien n'est enregistré tant que tu ne cliques pas sur "Ajouter". L'accord mets et l'apogée seront estimés automatiquement à l'ajout.</p>
 
-        {% if erreurs %}
-        <div class="erreurs">
-            {% for e in erreurs %}
-            <p class="erreur">Échec de l'analyse pour <strong>{{ e.photo }}</strong> : {{ e.erreur }}</p>
-            {% endfor %}
-        </div>
-        {% endif %}
+{% if erreurs %}
+<div class="erreurs">
+    {% for e in erreurs %}
+    <p class="erreur">Échec de l'analyse pour <strong>{{ e.photo }}</strong> : {{ e.erreur }}</p>
+    {% endfor %}
+</div>
+{% endif %}
 
-        {% if drafts %}
-        <div class="draft-grid">
-            {% for d in drafts %}
-            <div class="draft-card">
-                <img src="/static/uploads/{{ d.photo_path }}" alt="Photo source" class="draft-thumb">
-                <form method="post" action="/bouteilles">
-                    <input type="hidden" name="photo_path" value="{{ d.photo_path }}">
+{% if drafts %}
+<div class="bulk-actions">
+    <button type="button" id="ajouter-tout">Ajouter les {{ drafts|length }} bouteilles</button>
+    <p class="soft" id="bulk-progress" hidden></p>
+</div>
+<div class="draft-grid">
+    {% for d in drafts %}
+    <div class="draft-card">
+        <img src="/static/uploads/{{ d.photo_path }}" alt="Photo source" class="draft-thumb">
+        <form method="post" action="/bouteilles" id="draft-form-{{ loop.index }}">
+            <input type="hidden" name="photo_path" value="{{ d.photo_path }}">
 
-                    <label>Nom / Cuvée *</label>
-                    <input type="text" name="nom" value="{{ d.nom }}" required>
+            <label>Nom / Cuvée *</label>
+            <input type="text" name="nom" value="{{ d.nom }}" required>
 
-                    <label>Domaine / Producteur</label>
-                    <input type="text" name="domaine" value="{{ d.domaine }}">
+            <label>Domaine / Producteur</label>
+            <input type="text" name="domaine" value="{{ d.domaine }}">
 
-                    <label>Millésime</label>
-                    <input type="number" name="millesime" value="{{ d.millesime }}" min="1900" max="2100">
+            <label>Millésime</label>
+            <input type="number" name="millesime" value="{{ d.millesime }}" min="1900" max="2100">
 
-                    <label>Couleur *</label>
-                    <select name="couleur" required>
-                        {% for c in couleurs %}
-                        <option value="{{ c.value }}" {% if d.couleur == c.value %}selected{% endif %}>{{ c.value }}</option>
-                        {% endfor %}
-                    </select>
+            <label>Couleur *</label>
+            <select name="couleur" required>
+                {% for c in couleurs %}
+                <option value="{{ c.value }}" {% if d.couleur == c.value %}selected{% endif %}>{{ c.value }}</option>
+                {% endfor %}
+            </select>
 
-                    <label>Région</label>
-                    <input type="text" name="region" value="{{ d.region }}">
+            <label>Région</label>
+            <input type="text" name="region" value="{{ d.region }}">
 
-                    <label>Pays</label>
-                    <input type="text" name="pays" value="{{ d.pays }}">
+            <label>Pays</label>
+            <input type="text" name="pays" value="{{ d.pays }}">
 
-                    <label>Cépage(s)</label>
-                    <input type="text" name="cepages" value="{{ d.cepages }}">
+            <label>Cépage(s)</label>
+            <input type="text" name="cepages" value="{{ d.cepages }}">
 
-                    <label>Prix d'achat (€)</label>
-                    <input type="number" name="prix_achat" step="0.01" min="0">
+            <label>Prix d'achat (€)</label>
+            <input type="number" name="prix_achat" step="0.01" min="0">
 
-                    <label>Quantité</label>
-                    <input type="number" name="quantite" value="1" min="1">
+            <label>Quantité</label>
+            <input type="number" name="quantite" value="1" min="1">
 
-                    <label>Date d'achat</label>
-                    <input type="date" name="date_achat">
+            <label>Date d'achat</label>
+            <input type="date" name="date_achat">
 
-                    <label>Note</label>
-                    <textarea name="note" rows="2"></textarea>
+            <label>Note</label>
+            <textarea name="note" rows="2"></textarea>
 
-                    <button type="submit">Ajouter cette bouteille</button>
-                </form>
-            </div>
-            {% endfor %}
-        </div>
-        {% elif not erreurs %}
-        <p class="empty-state">Aucune bouteille détectée sur les photos analysées.</p>
-        {% endif %}
+            <button type="submit">Ajouter cette bouteille</button>
+        </form>
     </div>
-    <script>
-        document.querySelectorAll(".draft-card form").forEach(function (form) {
-            form.addEventListener("submit", function (event) {
-                event.currentTarget.querySelector("button").disabled = true;
-            });
+    {% endfor %}
+</div>
+{% elif not erreurs %}
+<p class="empty-state">Aucune bouteille détectée sur les photos analysées.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll(".draft-card form").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            event.currentTarget.querySelector("button").disabled = true;
         });
-    </script>
-</body>
-</html>
+    });
+
+    var boutonTout = document.getElementById("ajouter-tout");
+    if (boutonTout) {
+        boutonTout.addEventListener("click", async function () {
+            var forms = Array.from(document.querySelectorAll(".draft-card form"));
+            var progress = document.getElementById("bulk-progress");
+            boutonTout.disabled = true;
+            document.querySelectorAll(".draft-card button[type='submit']").forEach(function (b) {
+                b.disabled = true;
+            });
+            progress.hidden = false;
+
+            var echecs = [];
+            for (var i = 0; i < forms.length; i++) {
+                progress.textContent = "Ajout en cours… (" + (i + 1) + "/" + forms.length + ")";
+                try {
+                    var reponse = await fetch(forms[i].action, {
+                        method: "POST",
+                        body: new FormData(forms[i]),
+                    });
+                    if (!reponse.ok) {
+                        echecs.push(i + 1);
+                    }
+                } catch (e) {
+                    echecs.push(i + 1);
+                }
+            }
+
+            if (echecs.length) {
+                alert("Certaines bouteilles n'ont pas pu être ajoutées (n° " + echecs.join(", ") + ").");
+            }
+            window.location.href = "/";
+        });
+    }
+</script>
+{% endblock %}
