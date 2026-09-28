@@ -123,7 +123,7 @@ a {
 
 .page-header h1 {
     margin: 0 0 0.25rem;
-    font-size: 2.1rem;
+    font-size: 2.5rem;
 }
 
 .soft, .muted {
@@ -142,20 +142,31 @@ a {
     background: var(--button-bg);
     color: #FBF8F1;
     text-decoration: none;
-    padding: 0.5rem 1.1rem;
+    padding: 0.65rem 1.2rem;
     border-radius: 0.4rem;
     white-space: nowrap;
     display: inline-block;
     border: none;
     cursor: pointer;
-    font: inherit;
+    font-family: inherit;
+    font-size: 1rem;
     font-weight: 600;
     line-height: 1.3;
+    appearance: none;
+    -webkit-appearance: none;
+    vertical-align: middle;
+    box-sizing: border-box;
 }
 
 .header-form {
     max-width: none;
     margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.header-form button {
+    margin-top: 0;
 }
 
 .button:hover {
@@ -164,6 +175,7 @@ a {
 
 .page-header-actions {
     display: flex;
+    align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
 }

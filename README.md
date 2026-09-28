@@ -1,16 +1,14 @@
 # Apogée Wine
 
-Accordeur mets et vin : cataloguer sa cave, savoir quand boire chaque bouteille (apogée), obtenir des suggestions d'accords mets/vin, et être alerté quand une bouteille traîne depuis trop longtemps.
+Photographie ta cave, l'app s'occupe du reste : elle reconnaît chaque bouteille, te dit quand la boire et avec quoi, et te prévient avant qu'il ne soit trop tard.
 
 ## Fonctionnalités
 
-- Ajout de bouteilles manuellement ou par photo (une ou plusieurs bouteilles par photo, reconnaissance automatique via IA)
-- Vue de la cave triée par couleur, avec filtres (couleur, millésime, région, cépage)
-- Suggestion d'accord mets/vin et estimation de la fenêtre d'apogée générées automatiquement à l'ajout (via IA)
-- Calendrier d'apogée (dépassée / à boire vite / à boire maintenant / pas encore prête)
-- Fusion automatique des doublons (même vin ajouté plusieurs fois → quantité cumulée)
-- Statut "bue" / "en cave", avec décrément de quantité plutôt qu'un simple bascule
-- Connexion factice : un identifiant = une cave, totalement séparée des autres identifiants
+- **Scanne, c'est rangé** — prends en photo une ou plusieurs bouteilles, l'IA les reconnaît et pré-remplit leur fiche
+- **Le bon accord, sans y penser** — un accord mets/vin sur-mesure est suggéré automatiquement dès l'ajout
+- **Jamais raté une fenêtre de tir** — chaque vin a sa fenêtre d'apogée, avec un calendrier qui dit quoi boire cette année, maintenant, ou plus tard
+- **Une cave qui reste propre** — tri automatique par couleur, filtres fins (millésime, région, cépage), doublons fusionnés en un clic
+- **Ta cave, rien qu'à toi** — un identifiant = une cave privée, invisible pour les autres
 
 ## Lancer le projet
 
@@ -18,12 +16,13 @@ Accordeur mets et vin : cataloguer sa cave, savoir quand boire chaque bouteille 
 pip install -r requirements.txt
 ```
 
-Créer un fichier `.env` à la racine (voir `.env.example`) :
+Créer un fichier `.env` à la racine (voir `.env.example`) avec au minimum :
 
 ```
 GROQ_API_KEY=ta_cle_groq
-APP_SECRET_KEY=une_chaine_secrete_quelconque
 ```
+
+`APP_SECRET_KEY` (secret de signature des sessions) est optionnelle : une valeur par défaut est déjà prévue dans le code. À ne changer que si tu comptes partager ou déployer le projet.
 
 Puis démarrer le serveur :
 
