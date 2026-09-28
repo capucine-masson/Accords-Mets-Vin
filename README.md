@@ -62,10 +62,10 @@ Chaque bouteille appartient à un `proprietaire` (l'identifiant saisi à la conn
 ## Aperçu
 
 **Ma cave**
-![Vue de la cave](aperçu/cave.png)
+![Vue de la cave](apercu/cave.png)
 
 **Fiche bouteille**
-![Fiche d'une bouteille](aperçu/bouteille.png)
+![Fiche d'une bouteille](apercu/bouteille.png)
 
 **Calendrier d'apogée**
-![Calendrier d'apogée](aperçu/calendrier.png)
+![Calendrier d'apogée](apercu/calendrier.png)
