@@ -1,50 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Ajouter une bouteille — Apogée Wine{% endblock %}
+{% block title %}Ajouter des bouteilles — Apogée Wine{% endblock %}
 {% block content %}
 <p><a class="soft" href="/">&larr; Retour à la cave</a></p>
-<h1>Ajouter une bouteille</h1>
-<p class="soft">L'accord mets et la fenêtre d'apogée seront suggérés automatiquement après l'ajout.</p>
-<form method="post" action="/bouteilles" id="bottle-form">
-    <label for="nom">Nom / Cuvée *</label>
-    <input type="text" id="nom" name="nom" required>
+<h1>Ajouter des bouteilles</h1>
 
-    <label for="domaine">Domaine / Producteur</label>
-    <input type="text" id="domaine" name="domaine">
+<div class="ajout-choix">
+    <div class="ajout-bloc">
+        <h2>Depuis une photo</h2>
+        <p class="soft">Une ou plusieurs bouteilles sur la même photo, ou plusieurs photos à la fois.</p>
+        <form method="post" action="/bouteilles/nouvelle/photos" enctype="multipart/form-data" id="drop-form">
+            <label for="drop-input" class="dropzone" id="dropzone">
+                <span class="dropzone-texte">Glisse une ou plusieurs photos ici,<br>ou clique pour les choisir</span>
+                <span class="dropzone-loading soft" hidden>Analyse en cours…</span>
+                <input type="file" id="drop-input" name="photos" accept="image/*" multiple hidden>
+            </label>
+        </form>
+    </div>
 
-    <label for="millesime">Millésime</label>
-    <input type="number" id="millesime" name="millesime" min="1900" max="2100">
+    <div class="ajout-separateur"><span>ou</span></div>
 
-    <label for="couleur">Couleur *</label>
-    <select id="couleur" name="couleur" required>
-        {% for c in couleurs %}
-        <option value="{{ c.value }}">{{ c.value }}</option>
-        {% endfor %}
-    </select>
+    <div class="ajout-bloc">
+        <h2>Manuellement</h2>
+        <p class="soft">L'accord mets et l'apogée seront suggérés automatiquement après l'ajout.</p>
+        <form method="post" action="/bouteilles" id="bottle-form">
+            <label for="nom">Nom / Cuvée *</label>
+            <input type="text" id="nom" name="nom" required>
 
-    <label for="region">Région</label>
-    <input type="text" id="region" name="region">
+            <label for="domaine">Domaine / Producteur</label>
+            <input type="text" id="domaine" name="domaine">
 
-    <label for="pays">Pays</label>
-    <input type="text" id="pays" name="pays">
+            <label for="millesime">Millésime</label>
+            <input type="number" id="millesime" name="millesime" min="1900" max="2100">
 
-    <label for="cepages">Cépage(s)</label>
-    <input type="text" id="cepages" name="cepages" placeholder="ex: Syrah, Grenache">
+            <label for="couleur">Couleur *</label>
+            <select id="couleur" name="couleur" required>
+                {% for c in couleurs %}
+                <option value="{{ c.value }}">{{ c.value }}</option>
+                {% endfor %}
+            </select>
 
-    <label for="prix_achat">Prix d'achat (€)</label>
-    <input type="number" id="prix_achat" name="prix_achat" step="0.01" min="0">
+            <label for="region">Région</label>
+            <input type="text" id="region" name="region">
 
-    <label for="quantite">Quantité</label>
-    <input type="number" id="quantite" name="quantite" value="1" min="1">
+            <label for="pays">Pays</label>
+            <input type="text" id="pays" name="pays">
 
-    <label for="date_achat">Date d'achat</label>
-    <input type="date" id="date_achat" name="date_achat">
+            <label for="cepages">Cépage(s)</label>
+            <input type="text" id="cepages" name="cepages" placeholder="ex: Syrah, Grenache">
 
-    <label for="note">Note</label>
-    <textarea id="note" name="note" rows="3"></textarea>
+            <label for="prix_achat">Prix d'achat (€)</label>
+            <input type="number" id="prix_achat" name="prix_achat" step="0.01" min="0">
 
-    <button type="submit">Ajouter la bouteille</button>
-    <p class="soft submitting-note" hidden>Ajout et estimation en cours…</p>
-</form>
+            <label for="quantite">Quantité</label>
+            <input type="number" id="quantite" name="quantite" value="1" min="1">
+
+            <label for="date_achat">Date d'achat</label>
+            <input type="date" id="date_achat" name="date_achat">
+
+            <label for="note">Note</label>
+            <textarea id="note" name="note" rows="3"></textarea>
+
+            <button type="submit">Ajouter la bouteille</button>
+            <p class="soft submitting-note" hidden>Ajout et estimation en cours…</p>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -53,5 +73,36 @@
         event.currentTarget.querySelector("button").disabled = true;
         event.currentTarget.querySelector(".submitting-note").hidden = false;
     });
+
+    var dropzone = document.getElementById("dropzone");
+    var input = document.getElementById("drop-input");
+    var form = document.getElementById("drop-form");
+
+    function lancerAnalyse() {
+        if (!input.files.length) {
+            return;
+        }
+        dropzone.querySelector(".dropzone-texte").hidden = true;
+        dropzone.querySelector(".dropzone-loading").hidden = false;
+        form.submit();
+    }
+
+    dropzone.addEventListener("dragover", function (event) {
+        event.preventDefault();
+        dropzone.classList.add("dragover");
+    });
+    ["dragleave", "drop"].forEach(function (evt) {
+        dropzone.addEventListener(evt, function (event) {
+            event.preventDefault();
+            dropzone.classList.remove("dragover");
+        });
+    });
+    dropzone.addEventListener("drop", function (event) {
+        if (event.dataTransfer.files.length) {
+            input.files = event.dataTransfer.files;
+            lancerAnalyse();
+        }
+    });
+    input.addEventListener("change", lancerAnalyse);
 </script>
 {% endblock %}

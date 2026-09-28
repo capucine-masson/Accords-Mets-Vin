@@ -13,6 +13,8 @@ ORDRE_COULEUR_SQL = "CASE couleur " + " ".join(
     f"WHEN '{c}' THEN {i}" for i, c in enumerate(ORDRE_COULEURS)
 ) + " ELSE 99 END"
 
+PROPRIETAIRE_HERITE = "capucine"
+
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -27,6 +29,7 @@ def init_db() -> None:
             f"""
             CREATE TABLE IF NOT EXISTS bottles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                proprietaire TEXT NOT NULL DEFAULT '',
                 nom TEXT NOT NULL,
                 domaine TEXT,
                 millesime INTEGER,
@@ -50,6 +53,7 @@ def init_db() -> None:
             row[1] for row in conn.execute("PRAGMA table_info(bottles)")
         }
         nouvelles_colonnes = {
+            "proprietaire": "TEXT NOT NULL DEFAULT ''",
             "photo_path": "TEXT",
             "accord_mets": "TEXT",
             "apogee_debut": "INTEGER",
@@ -58,20 +62,27 @@ def init_db() -> None:
         for colonne, type_sql in nouvelles_colonnes.items():
             if colonne not in existing_columns:
                 conn.execute(f"ALTER TABLE bottles ADD COLUMN {colonne} {type_sql}")
+        # Bouteilles créées avant l'introduction des caves séparées par identifiant :
+        # rattachées une bonne fois pour toutes à l'identifiant historique.
+        conn.execute(
+            "UPDATE bottles SET proprietaire = ? WHERE proprietaire = ''",
+            (PROPRIETAIRE_HERITE,),
+        )
         conn.commit()
     finally:
         conn.close()
 
 
 def list_bottles(
+    proprietaire: str,
     statut: str = StatutBouteille.EN_CAVE.value,
     couleur: str | None = None,
     millesime: int | None = None,
     region: str | None = None,
     cepage: str | None = None,
 ) -> list[sqlite3.Row]:
-    conditions = ["statut = ?"]
-    params: list = [statut]
+    conditions = ["proprietaire = ?", "statut = ?"]
+    params: list = [proprietaire, statut]
 
     if couleur:
         conditions.append("couleur = ?")
@@ -97,26 +108,28 @@ def list_bottles(
         conn.close()
 
 
-def list_regions() -> list[str]:
+def list_regions(proprietaire: str) -> list[str]:
     conn = get_connection()
     try:
         rows = conn.execute(
             "SELECT DISTINCT region FROM bottles"
-            " WHERE region IS NOT NULL AND region != ''"
-            " ORDER BY region COLLATE NOCASE"
+            " WHERE proprietaire = ? AND region IS NOT NULL AND region != ''"
+            " ORDER BY region COLLATE NOCASE",
+            (proprietaire,),
         ).fetchall()
         return [r[0] for r in rows]
     finally:
         conn.close()
 
 
-def list_millesimes() -> list[int]:
+def list_millesimes(proprietaire: str) -> list[int]:
     conn = get_connection()
     try:
         rows = conn.execute(
             "SELECT DISTINCT millesime FROM bottles"
-            " WHERE millesime IS NOT NULL"
-            " ORDER BY millesime DESC"
+            " WHERE proprietaire = ? AND millesime IS NOT NULL"
+            " ORDER BY millesime DESC",
+            (proprietaire,),
         ).fetchall()
         return [r[0] for r in rows]
     finally:
@@ -130,10 +143,10 @@ def insert_bottle(bottle: dict) -> int:
         cursor = conn.execute(
             """
             INSERT INTO bottles
-                (nom, domaine, millesime, couleur, region, pays, cepages,
+                (proprietaire, nom, domaine, millesime, couleur, region, pays, cepages,
                  prix_achat, quantite, date_achat, note, statut, photo_path)
             VALUES
-                (:nom, :domaine, :millesime, :couleur, :region, :pays, :cepages,
+                (:proprietaire, :nom, :domaine, :millesime, :couleur, :region, :pays, :cepages,
                  :prix_achat, :quantite, :date_achat, :note, :statut, :photo_path)
             """,
             bottle,
@@ -144,22 +157,25 @@ def insert_bottle(bottle: dict) -> int:
         conn.close()
 
 
-def list_used_photo_paths() -> set[str]:
+def list_used_photo_paths(proprietaire: str) -> set[str]:
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT DISTINCT photo_path FROM bottles WHERE photo_path IS NOT NULL"
+            "SELECT DISTINCT photo_path FROM bottles"
+            " WHERE proprietaire = ? AND photo_path IS NOT NULL",
+            (proprietaire,),
         ).fetchall()
         return {r[0] for r in rows}
     finally:
         conn.close()
 
 
-def get_bottle(bottle_id: int) -> sqlite3.Row | None:
+def get_bottle(proprietaire: str, bottle_id: int) -> sqlite3.Row | None:
     conn = get_connection()
     try:
         return conn.execute(
-            "SELECT * FROM bottles WHERE id = ?", (bottle_id,)
+            "SELECT * FROM bottles WHERE id = ? AND proprietaire = ?",
+            (bottle_id, proprietaire),
         ).fetchone()
     finally:
         conn.close()
@@ -178,18 +194,19 @@ def update_bottle(bottle_id: int, fields: dict) -> None:
         conn.close()
 
 
-def list_a_boire_bientot(dans_les_jours: int = 180) -> list[sqlite3.Row]:
+def list_a_boire_bientot(proprietaire: str, dans_les_jours: int = 180) -> list[sqlite3.Row]:
     conn = get_connection()
     try:
         return conn.execute(
             """
             SELECT * FROM bottles
-            WHERE statut = ?
+            WHERE proprietaire = ?
+              AND statut = ?
               AND apogee_fin IS NOT NULL
               AND apogee_fin <= CAST(strftime('%Y', 'now', ? || ' days') AS INTEGER)
             ORDER BY apogee_fin ASC
             """,
-            (StatutBouteille.EN_CAVE.value, dans_les_jours),
+            (proprietaire, StatutBouteille.EN_CAVE.value, dans_les_jours),
         ).fetchall()
     finally:
         conn.close()

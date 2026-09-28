@@ -139,6 +139,27 @@ def nouvelle_bouteille(request: Request):
     )
 
 
+@app.post("/bouteilles/nouvelle/photos")
+async def ajouter_par_photo(request: Request, photos: List[UploadFile] = File(...)):
+    drafts = []
+    erreurs = []
+    for photo in photos:
+        destination = await _sauver_photo(photo)
+        if destination is None:
+            erreurs.append({"photo": photo.filename or "?", "erreur": "Fichier non reconnu comme une image."})
+            continue
+        try:
+            drafts.extend(analyser_photo(destination))
+        except Exception as exc:
+            erreurs.append({"photo": destination.name, "erreur": str(exc)})
+
+    return templates.TemplateResponse(
+        request,
+        "brouillons.html",
+        {"drafts": drafts, "erreurs": erreurs, "couleurs": list(Couleur)},
+    )
+
+
 @app.post("/bouteilles")
 def create_bottle(
     nom: str = Form(...),
@@ -289,16 +310,21 @@ def nouvelle_photo(request: Request):
     return templates.TemplateResponse(request, "nouvelle_photo.html", {})
 
 
+async def _sauver_photo(photo: UploadFile) -> Optional[Path]:
+    if not (photo.content_type or "").startswith("image/"):
+        return None
+    extension = Path(photo.filename or "").suffix
+    unique_name = f"{uuid.uuid4().hex}{extension}"
+    destination = UPLOAD_DIR / unique_name
+    with destination.open("wb") as f:
+        f.write(await photo.read())
+    return destination
+
+
 @app.post("/photos")
 async def upload_photos(photos: List[UploadFile] = File(...)):
     for photo in photos:
-        if not (photo.content_type or "").startswith("image/"):
-            continue
-        extension = Path(photo.filename or "").suffix
-        unique_name = f"{uuid.uuid4().hex}{extension}"
-        destination = UPLOAD_DIR / unique_name
-        with destination.open("wb") as f:
-            f.write(await photo.read())
+        await _sauver_photo(photo)
     return RedirectResponse(url="/photos", status_code=303)
 
 
