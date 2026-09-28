@@ -12,20 +12,79 @@
         <header class="page-header">
             <div>
                 <h1>Photos importées</h1>
-                <p class="muted">{{ photo_names|length }} photo(s).</p>
+                <p class="muted">{{ photos|length }} photo(s), dont {{ a_analyser }} à analyser.</p>
             </div>
-            <a class="button" href="/photos/nouvelle">+ Importer des photos</a>
+            <div class="page-header-actions">
+                <a class="button button-secondary" href="/photos/nouvelle">+ Importer des photos</a>
+            </div>
         </header>
 
-        {% if photo_names %}
-        <div class="photo-grid">
-            {% for name in photo_names %}
-            <img src="/static/uploads/{{ name }}" alt="Photo de bouteille" class="photo-thumb">
-            {% endfor %}
-        </div>
+        {% if photos %}
+        <form method="post" action="/photos/analyser" id="analyser-form">
+            {% if a_analyser %}
+            <div class="selection-actions">
+                <button type="button" id="toggle-select-all">Tout sélectionner</button>
+                <button type="submit">Analyser la sélection</button>
+            </div>
+            {% endif %}
+            <div class="photo-grid">
+                {% for p in photos %}
+                <div class="photo-item">
+                    <img src="/static/uploads/{{ p.name }}" alt="Photo de bouteille" class="photo-thumb">
+                    {% if p.utilisee %}
+                    <span class="badge">Déjà utilisée</span>
+                    {% else %}
+                    <button type="button" class="photo-delete" data-name="{{ p.name }}" title="Supprimer la photo">&times;</button>
+                    <label class="photo-select">
+                        <input type="checkbox" name="photos" value="{{ p.name }}">
+                        Sélectionner
+                    </label>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </form>
         {% else %}
         <p class="empty-state">Aucune photo importée pour l'instant. <a href="/photos/nouvelle">Importer des photos</a>.</p>
         {% endif %}
     </div>
+    <script>
+        var analyserForm = document.getElementById("analyser-form");
+        if (analyserForm) {
+            analyserForm.addEventListener("submit", function (event) {
+                var checked = event.currentTarget.querySelectorAll('input[name="photos"]:checked');
+                if (checked.length === 0) {
+                    event.preventDefault();
+                    alert("Sélectionne au moins une photo à analyser.");
+                    return;
+                }
+                event.currentTarget.querySelector('button[type="submit"]').disabled = true;
+            });
+        }
+
+        var toggleButton = document.getElementById("toggle-select-all");
+        if (toggleButton) {
+            toggleButton.addEventListener("click", function () {
+                var boxes = document.querySelectorAll('input[name="photos"]');
+                var allChecked = Array.from(boxes).every(function (b) { return b.checked; });
+                boxes.forEach(function (b) { b.checked = !allChecked; });
+                toggleButton.textContent = allChecked ? "Tout sélectionner" : "Tout désélectionner";
+            });
+        }
+
+        document.querySelectorAll(".photo-delete").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                if (!confirm("Supprimer cette photo ?")) {
+                    return;
+                }
+                btn.disabled = true;
+                fetch("/photos/" + encodeURIComponent(btn.dataset.name) + "/supprimer", {
+                    method: "POST",
+                }).then(function () {
+                    window.location.reload();
+                });
+            });
+        });
+    </script>
 </body>
 </html>

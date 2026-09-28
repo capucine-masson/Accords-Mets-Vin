@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brouillons détectés — Apogée Wine</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="page">
+        <p><a class="muted" href="/photos">&larr; Retour aux photos</a></p>
+        <h1>Bouteilles détectées</h1>
+        <p class="muted">Vérifie et corrige les champs avant d'ajouter chaque bouteille à ta cave. Rien n'est enregistré tant que tu ne cliques pas sur "Ajouter".</p>
+
+        {% if erreurs %}
+        <div class="erreurs">
+            {% for e in erreurs %}
+            <p class="erreur">Échec de l'analyse pour <strong>{{ e.photo }}</strong> : {{ e.erreur }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if drafts %}
+        <div class="draft-grid">
+            {% for d in drafts %}
+            <div class="draft-card">
+                <img src="/static/uploads/{{ d.photo_path }}" alt="Photo source" class="draft-thumb">
+                <form method="post" action="/bouteilles">
+                    <input type="hidden" name="photo_path" value="{{ d.photo_path }}">
+
+                    <label>Nom / Cuvée *</label>
+                    <input type="text" name="nom" value="{{ d.nom }}" required>
+
+                    <label>Domaine / Producteur</label>
+                    <input type="text" name="domaine" value="{{ d.domaine }}">
+
+                    <label>Millésime</label>
+                    <input type="number" name="millesime" value="{{ d.millesime }}" min="1900" max="2100">
+
+                    <label>Couleur *</label>
+                    <select name="couleur" required>
+                        {% for c in couleurs %}
+                        <option value="{{ c.value }}" {% if d.couleur == c.value %}selected{% endif %}>{{ c.value }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Région</label>
+                    <input type="text" name="region" value="{{ d.region }}">
+
+                    <label>Pays</label>
+                    <input type="text" name="pays" value="{{ d.pays }}">
+
+                    <label>Cépage(s)</label>
+                    <input type="text" name="cepages" value="{{ d.cepages }}">
+
+                    <label>Prix d'achat (€)</label>
+                    <input type="number" name="prix_achat" step="0.01" min="0">
+
+                    <label>Quantité</label>
+                    <input type="number" name="quantite" value="1" min="1">
+
+                    <label>Date d'achat</label>
+                    <input type="date" name="date_achat">
+
+                    <label>Note</label>
+                    <textarea name="note" rows="2"></textarea>
+
+                    <button type="submit">Ajouter cette bouteille</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif not erreurs %}
+        <p class="empty-state">Aucune bouteille détectée sur les photos analysées.</p>
+        {% endif %}
+    </div>
+    <script>
+        document.querySelectorAll(".draft-card form").forEach(function (form) {
+            form.addEventListener("submit", function (event) {
+                event.currentTarget.querySelector("button").disabled = true;
+            });
+        });
+    </script>
+</body>
+</html>

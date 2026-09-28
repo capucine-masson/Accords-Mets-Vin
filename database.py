@@ -33,10 +33,16 @@ def init_db() -> None:
                 quantite INTEGER NOT NULL DEFAULT 1,
                 date_achat TEXT,
                 note TEXT,
-                statut TEXT NOT NULL DEFAULT '{StatutBouteille.EN_CAVE.value}' CHECK (statut IN ({STATUTS_SQL}))
+                statut TEXT NOT NULL DEFAULT '{StatutBouteille.EN_CAVE.value}' CHECK (statut IN ({STATUTS_SQL})),
+                photo_path TEXT
             )
             """
         )
+        existing_columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(bottles)")
+        }
+        if "photo_path" not in existing_columns:
+            conn.execute("ALTER TABLE bottles ADD COLUMN photo_path TEXT")
         conn.commit()
     finally:
         conn.close()
@@ -100,20 +106,32 @@ def list_millesimes() -> list[int]:
 
 
 def insert_bottle(bottle: dict) -> int:
+    bottle = {"photo_path": None, **bottle}
     conn = get_connection()
     try:
         cursor = conn.execute(
             """
             INSERT INTO bottles
                 (nom, domaine, millesime, couleur, region, pays, cepages,
-                 prix_achat, quantite, date_achat, note, statut)
+                 prix_achat, quantite, date_achat, note, statut, photo_path)
             VALUES
                 (:nom, :domaine, :millesime, :couleur, :region, :pays, :cepages,
-                 :prix_achat, :quantite, :date_achat, :note, :statut)
+                 :prix_achat, :quantite, :date_achat, :note, :statut, :photo_path)
             """,
             bottle,
         )
         conn.commit()
         return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+def list_used_photo_paths() -> set[str]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT photo_path FROM bottles WHERE photo_path IS NOT NULL"
+        ).fetchall()
+        return {r[0] for r in rows}
     finally:
         conn.close()

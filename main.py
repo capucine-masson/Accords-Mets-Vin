@@ -8,8 +8,16 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from database import init_db, insert_bottle, list_bottles, list_millesimes, list_regions
+from database import (
+    init_db,
+    insert_bottle,
+    list_bottles,
+    list_millesimes,
+    list_regions,
+    list_used_photo_paths,
+)
 from enums import Couleur
+from vision import analyser_photo
 
 load_dotenv()
 
@@ -80,6 +88,7 @@ def create_bottle(
     quantite: int = Form(1),
     date_achat: str = Form(""),
     note: str = Form(""),
+    photo_path: str = Form(""),
 ):
     insert_bottle(
         {
@@ -95,6 +104,7 @@ def create_bottle(
             "date_achat": date_achat or None,
             "note": note or None,
             "statut": "en_cave",
+            "photo_path": photo_path or None,
         }
     )
     return RedirectResponse(url="/", status_code=303)
@@ -125,6 +135,46 @@ def list_photos(request: Request):
         key=lambda f: f.stat().st_mtime,
         reverse=True,
     )
+    used = list_used_photo_paths()
+    photos = [{"name": f.name, "utilisee": f.name in used} for f in files]
+    a_analyser = sum(1 for p in photos if not p["utilisee"])
     return templates.TemplateResponse(
-        request, "photos.html", {"photo_names": [f.name for f in files]}
+        request, "photos.html", {"photos": photos, "a_analyser": a_analyser}
     )
+
+
+@app.post("/photos/analyser")
+def analyser_photos(request: Request, photos: List[str] = Form([])):
+    used = list_used_photo_paths()
+    a_traiter = []
+    for name in photos:
+        if name in used or Path(name).name != name:
+            continue
+        photo_file = UPLOAD_DIR / name
+        if photo_file.is_file():
+            a_traiter.append(photo_file)
+
+    drafts = []
+    erreurs = []
+    for photo_file in a_traiter:
+        try:
+            drafts.extend(analyser_photo(photo_file))
+        except Exception as exc:
+            erreurs.append({"photo": photo_file.name, "erreur": str(exc)})
+
+    return templates.TemplateResponse(
+        request,
+        "brouillons.html",
+        {"drafts": drafts, "erreurs": erreurs, "couleurs": list(Couleur)},
+    )
+
+
+@app.post("/photos/{name}/supprimer")
+def supprimer_photo(name: str):
+    if Path(name).name != name:
+        return RedirectResponse(url="/photos", status_code=303)
+    if name not in list_used_photo_paths():
+        photo_file = UPLOAD_DIR / name
+        if photo_file.is_file():
+            photo_file.unlink()
+    return RedirectResponse(url="/photos", status_code=303)

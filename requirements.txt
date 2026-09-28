@@ -3,3 +3,4 @@ uvicorn[standard]
 python-dotenv
 jinja2
 python-multipart
+groq
