@@ -5,7 +5,7 @@
 <header class="page-header">
     <div>
         <h1>Photos importées</h1>
-        <p class="soft">{{ photos|length }} photo(s), dont {{ a_analyser }} à analyser.</p>
+        <p class="soft">{{ photos|length }} photo{% if photos|length > 1 %}s{% endif %}, dont {{ a_analyser }} à analyser.</p>
     </div>
     <div class="page-header-actions">
         <a class="button button-secondary" href="/photos/nouvelle">+ Importer des photos</a>

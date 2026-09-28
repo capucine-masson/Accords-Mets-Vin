@@ -5,7 +5,7 @@
 <header class="page-header">
     <div>
         <h1>Bouteilles bues</h1>
-        <p class="soft">{{ bottles|length }} bouteille(s).</p>
+        <p class="soft">{{ bottles|length }} bouteille{% if bottles|length > 1 %}s{% endif %}.</p>
     </div>
 </header>
 

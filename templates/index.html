@@ -4,7 +4,7 @@
 <header class="page-header">
     <div>
         <h1>Ma cave</h1>
-        <p class="soft">{{ bottles|length }} bouteille(s) en cave.</p>
+        <p class="soft">{{ bottles|length }} bouteille{% if bottles|length > 1 %}s{% endif %} en cave.</p>
     </div>
     <div class="page-header-actions">
         <div class="notif-wrapper">
