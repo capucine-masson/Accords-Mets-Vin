@@ -13,7 +13,10 @@
                 <h1>Ma cave</h1>
                 <p class="muted">{{ bottles|length }} bouteille(s) en cave.</p>
             </div>
-            <a class="button" href="/bouteilles/nouvelle">+ Ajouter une bouteille</a>
+            <div class="page-header-actions">
+                <a class="button button-secondary" href="/photos/nouvelle">Importer des photos</a>
+                <a class="button" href="/bouteilles/nouvelle">+ Ajouter une bouteille</a>
+            </div>
         </header>
 
         <form class="filters" method="get" action="/">

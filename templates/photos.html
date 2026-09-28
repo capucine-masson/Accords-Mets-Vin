@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photos importées — Apogée Wine</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="page">
+        <p><a class="muted" href="/">&larr; Retour à la cave</a></p>
+        <header class="page-header">
+            <div>
+                <h1>Photos importées</h1>
+                <p class="muted">{{ photo_names|length }} photo(s).</p>
+            </div>
+            <a class="button" href="/photos/nouvelle">+ Importer des photos</a>
+        </header>
+
+        {% if photo_names %}
+        <div class="photo-grid">
+            {% for name in photo_names %}
+            <img src="/static/uploads/{{ name }}" alt="Photo de bouteille" class="photo-thumb">
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">Aucune photo importée pour l'instant. <a href="/photos/nouvelle">Importer des photos</a>.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

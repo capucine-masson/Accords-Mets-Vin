@@ -1,7 +1,9 @@
-from typing import Optional
+import uuid
+from pathlib import Path
+from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -16,6 +18,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 init_db()
+
+UPLOAD_DIR = Path(__file__).parent / "static" / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/")
@@ -93,3 +98,33 @@ def create_bottle(
         }
     )
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.get("/photos/nouvelle")
+def nouvelle_photo(request: Request):
+    return templates.TemplateResponse(request, "nouvelle_photo.html", {})
+
+
+@app.post("/photos")
+async def upload_photos(photos: List[UploadFile] = File(...)):
+    for photo in photos:
+        if not (photo.content_type or "").startswith("image/"):
+            continue
+        extension = Path(photo.filename or "").suffix
+        unique_name = f"{uuid.uuid4().hex}{extension}"
+        destination = UPLOAD_DIR / unique_name
+        with destination.open("wb") as f:
+            f.write(await photo.read())
+    return RedirectResponse(url="/photos", status_code=303)
+
+
+@app.get("/photos")
+def list_photos(request: Request):
+    files = sorted(
+        (f for f in UPLOAD_DIR.iterdir() if f.is_file() and not f.name.startswith(".")),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )
+    return templates.TemplateResponse(
+        request, "photos.html", {"photo_names": [f.name for f in files]}
+    )

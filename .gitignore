@@ -3,3 +3,5 @@ Consigne.md
 __pycache__/
 *.pyc
 cave.db
+static/uploads/*
+!static/uploads/.gitkeep
